@@ -1,5 +1,4 @@
 package fybug.nulll.pdstream;
-
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -7,6 +6,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Optional;
+
 public
 class InByte implements Closeable {
     /** 操作目标 */
@@ -64,5 +64,12 @@ class InByte implements Closeable {
 
     @Override
     public
-    void close() {}
+    void close() {
+        synchronized(this){
+            try {
+                target.orElse(InputStream.nullInputStream()).close();
+            } catch (IOException e) {
+            }
+        }
+    }
 }
