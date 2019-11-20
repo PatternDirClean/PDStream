@@ -9,6 +9,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -26,8 +28,57 @@ class OperatorTOOL {
     private
     OperatorTOOL() {}
 
-    // todo 行解析
-    // todo 自定义解析
+    /** @see #passOfLine(String, int) */
+    @NotNull
+    public static
+    List<String> passOfLine(@Nullable String data) {return passOfLine(data, Integer.MAX_VALUE);}
+
+    /**
+     * 按行拆分字符串
+     * <p>
+     * 空的行不会被解析
+     * {@code '\r\n','\n'} 作为换行均可
+     *
+     * @param data    string
+     * @param maxSize 单行最大字数
+     *
+     * @return list
+     */
+    @NotNull
+    public static
+    List<String> passOfLine(@Nullable String data, int maxSize) {
+        maxSize = Math.max(maxSize, 1);
+        if (data == null || data.length() == 0)
+            return Collections.emptyList();
+
+        var list = new LinkedList<String>();
+        var buff = new StringBuilder(1024);
+
+        for ( char c : data.toCharArray() ){
+            // 检查是否到上限
+            if (buff.length() == maxSize) {
+                list.add(buff.toString());
+                buff.setLength(0);
+                continue;
+            }
+
+            switch ( c ) {
+                case '\n':
+                case '\r':
+                    if (buff.length() > 0) {
+                        list.add(buff.toString());
+                        buff.setLength(0);
+                    }
+                    continue;
+            }
+            buff.append(c);
+        }
+
+        if (buff.length() > 0)
+            list.add(buff.toString());
+
+        return list;
+    }
 
     /**
      * 字节解析为字符串

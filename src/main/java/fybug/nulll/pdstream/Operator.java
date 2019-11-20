@@ -2,7 +2,6 @@ package fybug.nulll.pdstream;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.Closeable;
-import java.io.IOException;
 
 /**
  * <h2>操作器基类.</h2>

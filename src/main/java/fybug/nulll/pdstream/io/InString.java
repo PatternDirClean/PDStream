@@ -61,15 +61,18 @@ class InString implements InOfStream<Reader, String> {
         try {
             synchronized ( this ){
                 var nowstream = original();
+                read:
                 for ( var i = 0; i < maxSize; i++ ){
                     c = nowstream.read();
 
-                    if (c == -1 || c == '\r')
-                        break;
-                    if (c == '\n') {
-                        if (i > 0)
-                            break;
-                        continue;
+                    switch ( c ) {
+                        case -1:
+                            break read;
+                        case '\n':
+                        case '\r':
+                            if (stringBuilder.length() > 0)
+                                break read;
+                            continue;
                     }
 
                     stringBuilder.append((char) c);
@@ -79,10 +82,10 @@ class InString implements InOfStream<Reader, String> {
             return null;
         }
 
+        stringBuilder.trimToSize();
         if (stringBuilder.length() == 0)
             return null;
 
-        stringBuilder.trimToSize();
         return stringBuilder.toString();
     }
 
