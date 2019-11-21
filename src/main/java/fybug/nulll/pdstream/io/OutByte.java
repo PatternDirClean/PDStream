@@ -36,9 +36,9 @@ class OutByte implements OutOfStream<OutputStream, byte[]> {
     @Override
     public
     boolean write(@Nullable byte[] data, int len) {
-        if (data == null)
+        if (data == null || len < 0)
             return false;
-        else if (len == 0)
+        else if (len == 0 || data.length == 0)
             return true;
 
         try {
@@ -55,9 +55,7 @@ class OutByte implements OutOfStream<OutputStream, byte[]> {
     @NotNull
     @Override
     public synchronized
-    OutByte.Buffof append(@Nullable byte[] bytes) {
-        return new Buffof(original(), bytes);
-    }
+    OutByte.Buffof append(@Nullable byte[] bytes) { return new Buffof(original(), bytes); }
 
     @Override
     @NotNull

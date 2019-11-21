@@ -37,6 +37,11 @@ class InByte implements InOfStream<InputStream, byte[]> {
     @Nullable
     public
     byte[] read(int size) {
+        if (size < 0)
+            return null;
+        else if (size == 0)
+            return new byte[0];
+
         byte[] bytes;
 
         try {

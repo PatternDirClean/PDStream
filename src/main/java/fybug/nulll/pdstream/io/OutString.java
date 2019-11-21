@@ -44,33 +44,14 @@ class OutString implements OutOfStream<Writer, String> {
      * @return 是否成功
      */
     public
-    boolean writeLine(@Nullable String data) {return writeLine(data, Integer.MAX_VALUE);}
-
-    /**
-     * 写入一行数据
-     * 输入当前系统的换行符 {@link System#lineSeparator()}
-     *
-     * @param data    输出的一行数据
-     * @param maxSize 输出的最大数量，超过此数量自动截断
-     *
-     * @return 是否成功
-     */
-    public
-    boolean writeLine(@Nullable String data, int maxSize) {
-        if (data == null)
-            return false;
-        else if (data.length() == 0)
-            return true;
-
-        return write(data.substring(0, Math.min(data.length(), maxSize)) + System.lineSeparator());
-    }
+    boolean writeLine(@Nullable String data) { return write(data + System.lineSeparator()); }
 
     @Override
     public
     boolean write(@Nullable String data, int len) {
-        if (data == null)
+        if (data == null || len < 0)
             return false;
-        else if (data.length() == 0)
+        else if (data.length() == 0 || len == 0)
             return true;
 
         try {

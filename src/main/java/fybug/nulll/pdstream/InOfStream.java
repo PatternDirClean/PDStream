@@ -23,15 +23,15 @@ interface InOfStream<O extends Closeable, D> extends Operator<O> {
      */
     @Nullable
     default
-    D read() { return read(Integer.MAX_VALUE); }
+    D readAll() { return read(Integer.MAX_VALUE); }
 
-    /** 同时执行 {@link #read()} 和 {@link #close()} */
+    /** 同时执行 {@link #readAll()} 和 {@link #close()} */
     @Nullable
     default
-    D readAndClose() {
+    D readAll_And_Close() {
         synchronized ( this ){
             try {
-                return read();
+                return readAll();
             } finally {
                 close();
             }

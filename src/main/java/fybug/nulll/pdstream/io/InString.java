@@ -2,8 +2,11 @@ package fybug.nulll.pdstream.io;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Optional;
 
 import fybug.nulll.pdstream.InOfStream;
@@ -41,82 +44,66 @@ class InString implements InOfStream<Reader, String> {
      */
     @Nullable
     public
-    String readLine() {return readLine(Integer.MAX_VALUE);}
-
-    /**
-     * 读取一行数据
-     * <p>
-     * 超过指定数量会自动判断为一行
-     *
-     * @param maxSize 最大数量
-     *
-     * @return line
-     */
-    @Nullable
-    public
-    String readLine(int maxSize) {
-        var stringBuilder = new StringBuilder(1024);
-        var c = 0;
+    String readLine() {
+        String readdata;
 
         try {
             synchronized ( this ){
-                var nowstream = original();
-                read:
-                for ( var i = 0; i < maxSize; i++ ){
-                    c = nowstream.read();
-
-                    switch ( c ) {
-                        case -1:
-                            break read;
-                        case '\n':
-                        case '\r':
-                            if (stringBuilder.length() > 0)
-                                break read;
-                            continue;
-                    }
-
-                    stringBuilder.append((char) c);
-                }
+                readdata = new BufferedReader(original()).readLine();
             }
         } catch ( IOException e ) {
             return null;
         }
 
-        stringBuilder.trimToSize();
-        if (stringBuilder.length() == 0)
+        if (readdata == null)
             return null;
+        return readdata.trim();
+    }
 
-        return stringBuilder.toString();
+    /**
+     * 按行读取所有数据数据
+     *
+     * @return lines
+     */
+    @Nullable
+    public
+    List<String> readAllLine() {
+        var list = new LinkedList<String>();
+
+        String data;
+        while( (data = readLine()) != null ){
+            if (data.length() != 0)
+                list.add(data);
+        }
+
+        if (list.size() == 0)
+            return null;
+        return list;
     }
 
     @Nullable
     @Override
     public
     String read(int size) {
-        var stringBuilder = new StringBuilder(1024);
-        var c = 0;
+        if (size < 0)
+            return null;
+        else if (size == 0)
+            return "";
+
+        var buff = new char[size];
+        var readsize = 0;
 
         try {
             synchronized ( this ){
-                var nowstream = original();
-                for ( var i = 0; i < size; i++ ){
-                    c = nowstream.read();
-
-                    if (c == -1)
-                        break;
-
-                    stringBuilder.append((char) c);
-                }
+                readsize = original().read(buff);
             }
         } catch ( IOException e ) {
             return null;
         }
 
-        if (stringBuilder.length() == 0)
-            return null;
-
-        stringBuilder.trimToSize();
-        return stringBuilder.toString();
+        if (readsize > 0)
+            return new String(buff, 0, readsize);
+        return null;
     }
 
     @NotNull

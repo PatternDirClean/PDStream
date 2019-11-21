@@ -44,7 +44,7 @@ interface OutOfStream<O extends Closeable & Flushable, D> extends Operator<O>, F
 
     /** 同时执行 {@link #write(D)} 和 {@link #flush()} 操作 */
     default
-    boolean writeAndFlush(@Nullable D data) {
+    boolean write_And_Flush(@Nullable D data) {
         synchronized ( this ){
             try {
                 return write(data);
