@@ -2,9 +2,13 @@ package fybug.nulll.pdstream;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.BufferedOutputStream;
+import java.io.BufferedWriter;
 import java.io.Closeable;
 import java.io.Flushable;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.Writer;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -22,6 +26,10 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public
 interface OutOfStream<O extends Closeable & Flushable, D> extends Operator<O>, Flushable {
+    BufferedWriter EMPY_BUFF_WRITER = new BufferedWriter(Writer.nullWriter());
+    BufferedOutputStream EMPY_BUFF_OUTPUT =
+            new BufferedOutputStream(OutputStream.nullOutputStream());
+
     /**
      * 输出数据到操作对象中
      *
@@ -174,5 +182,25 @@ interface OutOfStream<O extends Closeable & Flushable, D> extends Operator<O>, F
             } catch ( Exception ignored ) {
             }
         }
+    }
+
+    @NotNull
+    static
+    BufferedWriter toBuffWriter(@Nullable Writer writer) {
+        if (writer == null)
+            return EMPY_BUFF_WRITER;
+        if (writer instanceof BufferedWriter)
+            return (BufferedWriter) writer;
+        return new BufferedWriter(writer);
+    }
+
+    @NotNull
+    static
+    BufferedOutputStream toBuffWriter(@Nullable OutputStream writer) {
+        if (writer == null)
+            return EMPY_BUFF_OUTPUT;
+        if (writer instanceof BufferedOutputStream)
+            return (BufferedOutputStream) writer;
+        return new BufferedOutputStream(writer);
     }
 }

@@ -5,9 +5,8 @@ import org.jetbrains.annotations.Nullable;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.util.LinkedList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 import fybug.nulll.pdstream.InOfStream;
 
@@ -23,11 +22,11 @@ import fybug.nulll.pdstream.InOfStream;
 public
 class InString implements InOfStream<Reader, String> {
     /** 操作目标 */
-    @NotNull private Optional<Reader> target;
+    @NotNull private BufferedReader target;
 
     /** 空的操作器 */
     public
-    InString() { target = Optional.empty(); }
+    InString() { target = EMPY_BUFF_READ; }
 
     /**
      * 初始化操作器
@@ -35,7 +34,7 @@ class InString implements InOfStream<Reader, String> {
      * @param reader 初始操作对象
      */
     public
-    InString(@Nullable Reader reader) { target = Optional.ofNullable(reader); }
+    InString(@Nullable Reader reader) { target = InOfStream.ofBuffStream(reader); }
 
     /**
      * 读取一行数据
@@ -49,7 +48,7 @@ class InString implements InOfStream<Reader, String> {
 
         try {
             synchronized ( this ){
-                readdata = new BufferedReader(original()).readLine();
+                readdata = ((BufferedReader) original()).readLine();
             }
         } catch ( IOException e ) {
             return null;
@@ -68,12 +67,13 @@ class InString implements InOfStream<Reader, String> {
     @Nullable
     public
     List<String> readAllLine() {
-        var list = new LinkedList<String>();
+        List<String> list;
 
-        String data;
-        while( (data = readLine()) != null ){
-            if (data.length() != 0)
-                list.add(data);
+        synchronized ( this ){
+            list = Arrays.asList(((BufferedReader) original()).lines()
+                                                              .parallel()
+                                                              .filter(v -> !v.trim().isEmpty())
+                                                              .toArray(String[]::new));
         }
 
         if (list.size() == 0)
@@ -111,7 +111,7 @@ class InString implements InOfStream<Reader, String> {
     public
     InString bin(@Nullable Reader operator) {
         synchronized ( this ){
-            target = Optional.ofNullable(operator);
+            target = InOfStream.ofBuffStream(operator);
         }
         return this;
     }
@@ -119,5 +119,5 @@ class InString implements InOfStream<Reader, String> {
     @NotNull
     @Override
     public
-    Reader original() { return target.orElse(Reader.nullReader()); }
+    Reader original() { return target; }
 }

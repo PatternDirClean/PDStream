@@ -2,15 +2,18 @@ package fybug.nulll.pdstream;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -28,56 +31,61 @@ class OperatorTOOL {
     private
     OperatorTOOL() {}
 
-    /** @see #passOfLine(String, int) */
-    @NotNull
-    public static
-    List<String> passOfLine(@Nullable String data) {return passOfLine(data, Integer.MAX_VALUE);}
-
     /**
      * 按行拆分字符串
      * <p>
      * 空的行不会被解析
      * {@code '\r\n','\n'} 作为换行均可
      *
-     * @param data    string
-     * @param maxSize 单行最大字数
+     * @param data string
      *
      * @return list
      */
     @NotNull
     public static
-    List<String> passOfLine(@Nullable String data, int maxSize) {
-        maxSize = Math.max(maxSize, 1);
+    List<String> passOfLine(@Nullable String data) {
         if (data == null || data.length() == 0)
             return Collections.emptyList();
 
-        var list = new LinkedList<String>();
-        var buff = new StringBuilder(1024);
+        List<String> list;
+        var stream = new BufferedReader(new StringReader(data));
 
-        for ( char c : data.toCharArray() ){
-            // 检查是否到上限
-            if (buff.length() == maxSize) {
-                list.add(buff.toString());
-                buff.setLength(0);
-                continue;
-            }
-
-            switch ( c ) {
-                case '\n':
-                case '\r':
-                    if (buff.length() > 0) {
-                        list.add(buff.toString());
-                        buff.setLength(0);
-                    }
-                    continue;
-            }
-            buff.append(c);
-        }
-
-        if (buff.length() > 0)
-            list.add(buff.toString());
+        list = Arrays.asList(
+                stream.lines().filter(v -> !v.trim().isEmpty()).toArray(String[]::new));
 
         return list;
+    }
+
+    @NotNull
+    public static
+    String combineSring(String... strings) {
+        if (strings.length == 0)
+            return "";
+
+        var stringBuff = new StringBuilder(1024);
+
+        Arrays.stream(strings).filter(v -> v != null && !v.isEmpty()).forEach(stringBuff::append);
+
+        return stringBuff.toString();
+    }
+
+    public static
+    String linesString(Collection<String> collection) {
+        if (collection == null || collection.size() == 0)
+            return "";
+
+        var strbuff = new StringBuilder(1024);
+        var lineseparator = System.lineSeparator(); // 换行符
+
+        collection.stream()
+                  .filter(v -> v != null && !v.isEmpty())
+                  .forEach(v -> strbuff.append(v).append(lineseparator));
+
+        /* 移除尾部换行符 */
+        if (strbuff.length() > 0)
+            strbuff.setLength(strbuff.length() - lineseparator.length());
+
+        return strbuff.toString();
     }
 
     /**
@@ -96,35 +104,6 @@ class OperatorTOOL {
     }
 
     /**
-     * 整合字符并转化为字节
-     * <p>
-     * 列表中一个元素将视为一行字符串
-     * 在整合过程中会进行 {@link String#trim()}
-     * 空字符串不会被整合
-     *
-     * @param strings 字符串列表
-     *
-     * @return byte
-     */
-    @NotNull
-    public static
-    byte[] ofByte(@NotNull List<String> strings) {
-        if (strings.size() == 0)
-            return new byte[0];
-        if (strings.size() == 1 && strings.get(0) != null)
-            return strings.get(0).getBytes();
-
-        var stringbuilder = new StringBuilder();
-
-        strings.forEach(v -> {
-            if (v != null && !v.trim().isEmpty())
-                stringbuilder.append(v.trim()).append(System.lineSeparator());
-        });
-
-        return stringbuilder.toString().trim().getBytes();
-    }
-
-    /**
      * 整合为字符串并转化为字节
      * <p>
      * 仅将字符串拼接并转换
@@ -138,15 +117,10 @@ class OperatorTOOL {
     byte[] ofByte(String... s) {
         if (s.length == 0)
             return new byte[0];
-        if (s.length == 1 && s[0] != null)
-            return s[0].getBytes();
 
-        var stringBuilder = new StringBuilder();
+        var stringBuilder = new StringBuilder(1024);
 
-        for ( String nows : s ){
-            if (nows != null)
-                stringBuilder.append(nows);
-        }
+        Arrays.stream(s).filter(v -> v != null && !v.isEmpty()).forEach(stringBuilder::append);
 
         return stringBuilder.toString().getBytes();
     }

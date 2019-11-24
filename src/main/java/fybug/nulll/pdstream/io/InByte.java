@@ -2,9 +2,9 @@ package fybug.nulll.pdstream.io;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Optional;
 
 import fybug.nulll.pdstream.InOfStream;
 
@@ -19,11 +19,11 @@ import fybug.nulll.pdstream.InOfStream;
 public
 class InByte implements InOfStream<InputStream, byte[]> {
     /** 操作目标 */
-    @NotNull private Optional<InputStream> target;
+    @NotNull private BufferedInputStream target;
 
     /** 空的操作器 */
     public
-    InByte() { target = Optional.empty(); }
+    InByte() { target = InOfStream.EMPY_BUFF_INPUT; }
 
     /**
      * 初始化操作器
@@ -31,7 +31,7 @@ class InByte implements InOfStream<InputStream, byte[]> {
      * @param inputStream 初始操作目标
      */
     public
-    InByte(@Nullable InputStream inputStream) {target = Optional.ofNullable(inputStream);}
+    InByte(@Nullable InputStream inputStream) {target = InOfStream.ofBuffStream(inputStream);}
 
     @Override
     @Nullable
@@ -54,7 +54,6 @@ class InByte implements InOfStream<InputStream, byte[]> {
 
         if (bytes.length == 0)
             return null;
-
         return bytes;
     }
 
@@ -63,7 +62,7 @@ class InByte implements InOfStream<InputStream, byte[]> {
     public
     InByte bin(@Nullable InputStream operator) {
         synchronized ( this ){
-            target = Optional.ofNullable(operator);
+            target = InOfStream.ofBuffStream(operator);
         }
         return this;
     }
@@ -71,5 +70,5 @@ class InByte implements InOfStream<InputStream, byte[]> {
     @NotNull
     @Override
     public
-    InputStream original() { return target.orElse(InputStream.nullInputStream()); }
+    InputStream original() { return target; }
 }

@@ -2,9 +2,10 @@ package fybug.nulll.pdstream.io;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.Optional;
+import java.util.Collection;
 
 import fybug.nulll.pdstream.OutOfStream;
 
@@ -21,11 +22,11 @@ import fybug.nulll.pdstream.OutOfStream;
 public
 class OutString implements OutOfStream<Writer, String> {
     /** 操作目标 */
-    @NotNull private Optional<Writer> target;
+    @NotNull private BufferedWriter target;
 
     /** 空的操作器 */
     public
-    OutString() {target = Optional.empty();}
+    OutString() {target = OutOfStream.EMPY_BUFF_WRITER;}
 
     /**
      * 初始化操作器
@@ -33,18 +34,29 @@ class OutString implements OutOfStream<Writer, String> {
      * @param writer 初始操作目标
      */
     public
-    OutString(@Nullable Writer writer) {target = Optional.ofNullable(writer);}
+    OutString(@Nullable Writer writer) {target = OutOfStream.toBuffWriter(writer);}
 
     /**
      * 写入一行数据
-     * 输入当前系统的换行符 {@link System#lineSeparator()}
+     * 输入时插入当前系统的换行符 {@link System#lineSeparator()}
      *
      * @param data 输出的一行数据
      *
      * @return 是否成功
      */
     public
-    boolean writeLine(@Nullable String data) { return write(data + System.lineSeparator()); }
+    boolean writeLine(@Nullable String data) {
+        try {
+            synchronized ( this ){
+                if (write(data)) {
+                    target.newLine();
+                    return true;
+                }
+            }
+        } catch ( IOException ignored ) {
+        }
+        return false;
+    }
 
     @Override
     public
@@ -75,7 +87,7 @@ class OutString implements OutOfStream<Writer, String> {
     public
     OutString bin(@Nullable Writer operator) {
         synchronized ( this ){
-            target = Optional.ofNullable(operator);
+            target = OutOfStream.toBuffWriter(operator);
         }
         return this;
     }
@@ -83,7 +95,7 @@ class OutString implements OutOfStream<Writer, String> {
     @NotNull
     @Override
     public
-    Writer original() { return target.orElse(Writer.nullWriter()); }
+    Writer original() { return target; }
 
     /**
      * <h2>字符缓存桥接.</h2>

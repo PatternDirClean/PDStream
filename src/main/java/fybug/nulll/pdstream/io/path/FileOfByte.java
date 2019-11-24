@@ -1,6 +1,7 @@
 package fybug.nulll.pdstream.io.path;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -53,7 +54,7 @@ class FileOfByte extends FileOperator<byte[], FileOfByte> {
         byte[] readdata;
 
         synchronized ( this ){
-            try ( var stream = Files.newInputStream(toPath()) ) {
+            try ( var stream = new BufferedInputStream(Files.newInputStream(toPath())) ) {
                 readdata = stream.readNBytes(maxSize);
             } catch ( IOException e ) {
                 return null;

@@ -1,7 +1,9 @@
 package fybug.nulll.pdstream;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.BufferedReader;
 import java.io.Closeable;
+import java.io.Reader;
 
 /**
  * <h2>操作器基类.</h2>

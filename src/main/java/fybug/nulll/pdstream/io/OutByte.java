@@ -2,6 +2,7 @@ package fybug.nulll.pdstream.io;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Optional;
@@ -19,11 +20,11 @@ import fybug.nulll.pdstream.OutOfStream;
 public
 class OutByte implements OutOfStream<OutputStream, byte[]> {
     /** 操作目标 */
-    @NotNull private Optional<OutputStream> target;
+    @NotNull private BufferedOutputStream target;
 
     /** 空的操作器 */
     public
-    OutByte() {target = Optional.empty();}
+    OutByte() {target = OutOfStream.EMPY_BUFF_OUTPUT;}
 
     /**
      * 初始化操作器
@@ -31,7 +32,7 @@ class OutByte implements OutOfStream<OutputStream, byte[]> {
      * @param outputsteam 初始操作目标
      */
     public
-    OutByte(@Nullable OutputStream outputsteam) {target = Optional.ofNullable(outputsteam);}
+    OutByte(@Nullable OutputStream outputsteam) {target = OutOfStream.toBuffWriter(outputsteam);}
 
     @Override
     public
@@ -62,7 +63,7 @@ class OutByte implements OutOfStream<OutputStream, byte[]> {
     public
     OutByte bin(@Nullable OutputStream operator) {
         synchronized ( this ){
-            target = Optional.ofNullable(operator);
+            target = OutOfStream.toBuffWriter(operator);
         }
         return this;
     }
@@ -70,7 +71,7 @@ class OutByte implements OutOfStream<OutputStream, byte[]> {
     @Override
     @NotNull
     public
-    OutputStream original() { return target.orElse(OutputStream.nullOutputStream()); }
+    OutputStream original() { return target; }
 
     /**
      * <h2>字节缓存桥接.</h2>

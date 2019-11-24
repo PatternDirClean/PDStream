@@ -1,8 +1,13 @@
 package fybug.nulll.pdstream;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
 
 /**
  * <h2>面向流的读取操作工具.</h2>
@@ -16,6 +21,9 @@ import java.io.IOException;
  */
 public
 interface InOfStream<O extends Closeable, D> extends Operator<O> {
+    BufferedReader EMPY_BUFF_READ = new BufferedReader(Reader.nullReader());
+    BufferedInputStream EMPY_BUFF_INPUT = new BufferedInputStream(InputStream.nullInputStream());
+
     /**
      * 读取操作对象中的所有数据
      *
@@ -57,5 +65,25 @@ interface InOfStream<O extends Closeable, D> extends Operator<O> {
             }
         } catch ( IOException ignored ) {
         }
+    }
+
+    @NotNull
+    static
+    BufferedInputStream ofBuffStream(@Nullable InputStream reader) {
+        if (reader == null)
+            return EMPY_BUFF_INPUT;
+        if (reader instanceof BufferedInputStream)
+            return (BufferedInputStream) reader;
+        return new BufferedInputStream(reader);
+    }
+
+    @NotNull
+    static
+    BufferedReader ofBuffStream(@Nullable Reader reader) {
+        if (reader == null)
+            return EMPY_BUFF_READ;
+        if (reader instanceof BufferedReader)
+            return (BufferedReader) reader;
+        return new BufferedReader(reader);
     }
 }
