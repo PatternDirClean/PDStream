@@ -33,7 +33,7 @@ interface InOfStream<O extends Closeable, D> extends Operator<O> {
      */
     @Nullable
     default
-    D readAll() { return read(Integer.MAX_VALUE); }
+    D readAll() { return read((int) Runtime.getRuntime().totalMemory()); }
 
     /** run task of {@link #readAll()} and {@link #close()} */
     @Nullable

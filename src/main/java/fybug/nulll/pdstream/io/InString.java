@@ -4,6 +4,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.stream.Stream;
 
@@ -112,4 +114,28 @@ class InString implements InOfStream<Reader, String> {
     @Override
     public
     Reader original() { return target; }
+
+    /**
+     * 转化为字符处理器
+     *
+     * @param inputStream input
+     *
+     * @return new InString
+     */
+    @NotNull
+    public static
+    InString toInString(@NotNull InputStream inputStream)
+    { return new InString(new InputStreamReader(inputStream)); }
+
+    /**
+     * 转化字节处理器为字符处理器
+     *
+     * @param inByte InByte
+     *
+     * @return new InString
+     */
+    @NotNull
+    public static
+    InString toInString(@NotNull InByte inByte)
+    { return new InString(new InputStreamReader(inByte.original())); }
 }

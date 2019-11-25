@@ -33,6 +33,8 @@
 一个包含数据读写，流处理，数据操作的工具包。
 提供基础的流、文件的无异常读写操作，即失败后返回 ``null`` or ``false``。
 
+后续将会跟进我的其他项目进一步完善
+
 ## 使用方法
 请导入其 `jar` 文件,文件在 [发行版](https://gitee.com/PatternDirClean/PDStream/releases) 或项目的 [jar](https://gitee.com/PatternDirClean/PDStream/tree/master/jar) 文件夹下可以找到
 >发行版中可以看到全部版本<br/>项目下的 jar 文件夹是当前最新的每夜版

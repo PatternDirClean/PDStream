@@ -4,6 +4,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.Writer;
 
 import fybug.nulll.pdstream.OutOfStream;
@@ -53,6 +55,7 @@ class OutString implements OutOfStream<Writer, String> {
                 if (write(data)) {
                     // new lines
                     target.newLine();
+                    target.flush();
                     return true;
                 }
 
@@ -144,4 +147,28 @@ class OutString implements OutOfStream<Writer, String> {
             return this;
         }
     }
+
+    /**
+     * 转化字节处理器为字符处理器
+     *
+     * @param outByte OutByte
+     *
+     * @return new OutString
+     */
+    @NotNull
+    public static
+    OutString toOutString(@NotNull OutByte outByte)
+    {return new OutString(new OutputStreamWriter(outByte.original()));}
+
+    /**
+     * 转化为字符处理器
+     *
+     * @param outputStream OutPut
+     *
+     * @return new OutString
+     */
+    @NotNull
+    public static
+    OutString toOutString(@NotNull OutputStream outputStream)
+    {return new OutString(new OutputStreamWriter(outputStream));}
 }
