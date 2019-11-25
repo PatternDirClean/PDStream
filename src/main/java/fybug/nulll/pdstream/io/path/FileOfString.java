@@ -1,11 +1,12 @@
 package fybug.nulll.pdstream.io.path;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
+import java.util.stream.Stream;
 
 import static java.nio.file.StandardOpenOption.APPEND;
 import static java.nio.file.StandardOpenOption.CREATE;
@@ -48,14 +49,12 @@ class FileOfString extends FileOperator<String, FileOfString> {
      */
     @Nullable
     public
-    String readFirstLine() {
+    String readFirstLine() throws IOException {
         String readdata;
 
         synchronized ( this ){
             try ( var stream = Files.newBufferedReader(toPath()) ) {
                 readdata = stream.readLine();
-            } catch ( IOException e ) {
-                return null;
             }
         }
 
@@ -70,22 +69,12 @@ class FileOfString extends FileOperator<String, FileOfString> {
      *
      * @return lines
      */
-    @Nullable
+    @NotNull
     public
-    List<String> readAllLine() {
-        List<String> list;
-
+    Stream<String> readAllLine() throws IOException {
         synchronized ( this ){
-            try {
-                list = Files.readAllLines(toPath());
-            } catch ( IOException e ) {
-                return null;
-            }
+            return Files.newBufferedReader(toPath()).lines().parallel();
         }
-
-        if (list.size() == 0)
-            return null;
-        return list;
     }
 
     /**
@@ -95,12 +84,17 @@ class FileOfString extends FileOperator<String, FileOfString> {
      * @param data lines list
      */
     public
-    boolean writerLine(@Nullable String data) { return writer(data + System.lineSeparator()); }
+    void writerLine(@Nullable String data) throws IOException {
+        synchronized ( this ){
+            if (data != null && data.length() > 0)
+                writer(data + System.lineSeparator());
+        }
+    }
 
     @Nullable
     @Override
     public
-    String readFirst(int maxSize) {
+    String readFirst(int maxSize) throws IOException {
         if (maxSize < 0)
             return null;
         else if (maxSize == 0)
@@ -112,8 +106,6 @@ class FileOfString extends FileOperator<String, FileOfString> {
         synchronized ( this ){
             try ( var stream = Files.newBufferedReader(toPath()) ) {
                 readsize = stream.read(buff);
-            } catch ( IOException e ) {
-                return null;
             }
         }
 
@@ -125,40 +117,24 @@ class FileOfString extends FileOperator<String, FileOfString> {
 
     @Override
     public
-    boolean writer(@Nullable String data, int len) {
-        if (data == null || len < 0)
-            return false;
-        else if (data.length() == 0 || len == 0)
-            return true;
+    void writer(@Nullable String data, int len) throws IOException {
+        if (data == null || len <= 0 || data.length() == 0)
+            return;
 
-        try {
-            synchronized ( this ){
-                Files.writeString(toPath(), data.substring(Math.min(data.length(), len)).trim(),
-                                  WRITE, CREATE, APPEND);
-            }
-        } catch ( IOException e ) {
-            return false;
+        synchronized ( this ){
+            Files.writeString(toPath(), data.substring(Math.min(data.length(), len)).trim(), WRITE,
+                              CREATE, APPEND);
         }
-
-        return true;
     }
 
     @Override
     public
-    boolean rewrite(@Nullable String data) {
-        if (data == null)
-            return false;
-        else if (data.length() == 0)
-            return true;
+    void rewrite(@Nullable String data) throws IOException {
+        if (data == null || data.length() == 0)
+            return;
 
-        try {
-            synchronized ( this ){
-                Files.writeString(toPath(), data.trim(), WRITE, CREATE, APPEND, TRUNCATE_EXISTING);
-            }
-        } catch ( IOException e ) {
-            return false;
+        synchronized ( this ){
+            Files.writeString(toPath(), data.trim(), WRITE, CREATE, APPEND, TRUNCATE_EXISTING);
         }
-
-        return true;
     }
 }

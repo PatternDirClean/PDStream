@@ -3,6 +3,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Optional;
 
@@ -48,7 +49,7 @@ class FileOperator<D, O extends FileOperator<?, ?>> {
      */
     @Nullable
     public
-    D readAll() {return readFirst(Integer.MAX_VALUE);}
+    D readAll() throws IOException {return readFirst(Integer.MAX_VALUE);}
 
     /**
      * 读取位于文件开头指定长度的数据
@@ -59,28 +60,24 @@ class FileOperator<D, O extends FileOperator<?, ?>> {
      */
     @Nullable
     public abstract
-    D readFirst(int maxSize);
+    D readFirst(int maxSize) throws IOException;
 
     /**
      * 写入数据到路径中
      *
      * @param data data
-     *
-     * @return 是否写入成功
      */
     public
-    boolean writer(@Nullable D data) {return writer(data, Integer.MAX_VALUE);}
+    void writer(@Nullable D data) throws IOException {writer(data, Integer.MAX_VALUE);}
 
     /**
      * 写入指定长度的数据到路径中
      *
      * @param data data
      * @param len  写入的长度
-     *
-     * @return 是否写入成功
      */
     public abstract
-    boolean writer(@Nullable D data, int len);
+    void writer(@Nullable D data, int len) throws IOException;
 
     /**
      * 并联写入数据
@@ -93,7 +90,7 @@ class FileOperator<D, O extends FileOperator<?, ?>> {
      */
     @NotNull
     public
-    O append(@Nullable D data) {
+    O append(@Nullable D data) throws IOException {
         writer(data);
         return (O) this;
     }
@@ -102,11 +99,9 @@ class FileOperator<D, O extends FileOperator<?, ?>> {
      * 重写文件内的数据
      *
      * @param data data
-     *
-     * @return 是否成功
      */
     public abstract
-    boolean rewrite(@Nullable D data);
+    void rewrite(@Nullable D data) throws IOException;
 
     /**
      * 绑定文件路径

@@ -45,7 +45,7 @@ class FileOfByte extends FileOperator<byte[], FileOfByte> {
     @Nullable
     @Override
     public
-    byte[] readFirst(int maxSize) {
+    byte[] readFirst(int maxSize) throws IOException {
         if (maxSize < 0)
             return null;
         else if (maxSize == 0)
@@ -56,8 +56,6 @@ class FileOfByte extends FileOperator<byte[], FileOfByte> {
         synchronized ( this ){
             try ( var stream = new BufferedInputStream(Files.newInputStream(toPath())) ) {
                 readdata = stream.readNBytes(maxSize);
-            } catch ( IOException e ) {
-                return null;
             }
         }
 
@@ -68,36 +66,24 @@ class FileOfByte extends FileOperator<byte[], FileOfByte> {
 
     @Override
     public
-    boolean writer(@Nullable byte[] data, int len) {
-        if (data == null || len < 0)
-            return false;
-        else if (data.length == 0 || len == 0)
-            return true;
+    void writer(@Nullable byte[] data, int len) throws IOException {
+        if (data == null || len <= 0 || data.length == 0)
+            return;
 
-        try {
-            synchronized ( this ){
-                Files.write(toPath(), Arrays.copyOf(data, Math.min(data.length, len)), WRITE,
-                            CREATE, APPEND);
-            }
-        } catch ( IOException e ) {
-            return false;
+        synchronized ( this ){
+            Files.write(toPath(), Arrays.copyOf(data, Math.min(data.length, len)), WRITE, CREATE,
+                        APPEND);
         }
-        return true;
     }
 
     @Override
     public
-    boolean rewrite(@Nullable byte[] data) {
+    void rewrite(@Nullable byte[] data) throws IOException {
         if (data == null)
-            return false;
+            return;
 
-        try {
-            synchronized ( this ){
-                Files.write(toPath(), data, WRITE, CREATE, APPEND, TRUNCATE_EXISTING);
-            }
-        } catch ( IOException e ) {
-            return false;
+        synchronized ( this ){
+            Files.write(toPath(), data, WRITE, CREATE, APPEND, TRUNCATE_EXISTING);
         }
-        return true;
     }
 }
