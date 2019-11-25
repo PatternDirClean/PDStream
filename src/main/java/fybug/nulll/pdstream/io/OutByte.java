@@ -5,7 +5,6 @@ import org.jetbrains.annotations.Nullable;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Optional;
 
 import fybug.nulll.pdstream.OutOfStream;
 
@@ -15,6 +14,8 @@ import fybug.nulll.pdstream.OutOfStream;
  *
  * @author fybug
  * @version 0.0.1
+ * @see OutOfStream#EMPY_BUFF_OUTPUT
+ * @see OutOfStream#toBuffWriter(OutputStream)
  * @since io 0.0.1
  */
 public
@@ -37,10 +38,12 @@ class OutByte implements OutOfStream<OutputStream, byte[]> {
     @Override
     public
     boolean write(@Nullable byte[] data, int len) {
+        /* check:检查参数合法性 */
         if (data == null || len < 0)
             return false;
         else if (len == 0 || data.length == 0)
             return true;
+        /* // check */
 
         try {
             synchronized ( this ){
@@ -56,7 +59,11 @@ class OutByte implements OutOfStream<OutputStream, byte[]> {
     @NotNull
     @Override
     public synchronized
-    OutByte.Buffof append(@Nullable byte[] bytes) { return new Buffof(original(), bytes); }
+    OutByte.Buffof append(@Nullable byte[] bytes) {
+        synchronized ( this ){
+            return new Buffof(original(), bytes);
+        }
+    }
 
     @Override
     @NotNull

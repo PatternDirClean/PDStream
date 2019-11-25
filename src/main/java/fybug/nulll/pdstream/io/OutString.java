@@ -5,7 +5,6 @@ import org.jetbrains.annotations.Nullable;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.Collection;
 
 import fybug.nulll.pdstream.OutOfStream;
 
@@ -17,6 +16,8 @@ import fybug.nulll.pdstream.OutOfStream;
  *
  * @author fybug
  * @version 0.0.1
+ * @see OutOfStream#EMPY_BUFF_WRITER
+ * @see OutOfStream#toBuffWriter(Writer)
  * @since io 0.0.1
  */
 public
@@ -48,10 +49,13 @@ class OutString implements OutOfStream<Writer, String> {
     boolean writeLine(@Nullable String data) {
         try {
             synchronized ( this ){
+                // 写入换行符以前的数据
                 if (write(data)) {
+                    // new lines
                     target.newLine();
                     return true;
                 }
+
             }
         } catch ( IOException ignored ) {
         }
@@ -61,10 +65,13 @@ class OutString implements OutOfStream<Writer, String> {
     @Override
     public
     boolean write(@Nullable String data, int len) {
-        if (data == null || len < 0)
+        /* check:数据检查 */
+        if (data == null || len < 0) {
             return false;
-        else if (data.length() == 0 || len == 0)
+        } else if (data.length() == 0 || len == 0) {
             return true;
+        }
+        /* // check */
 
         try {
             synchronized ( this ){
@@ -80,7 +87,11 @@ class OutString implements OutOfStream<Writer, String> {
     @NotNull
     @Override
     public synchronized
-    OutString.BuffOf append(@Nullable String data) { return new BuffOf(original(), data); }
+    OutString.BuffOf append(@Nullable String data) {
+        synchronized ( this ){
+            return new BuffOf(original(), data);
+        }
+    }
 
     @NotNull
     @Override
@@ -100,6 +111,7 @@ class OutString implements OutOfStream<Writer, String> {
     /**
      * <h2>字符缓存桥接.</h2>
      * 所有通过 {@link #append(String)} 写入的数据将会缓存直到执行 {@link #close()} | {@link #flush()}
+     * 时才会操作
      * <p>
      * 追加行输出 {@link #appendLine(String)}
      *

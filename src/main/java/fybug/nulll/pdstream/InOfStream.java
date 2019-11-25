@@ -13,7 +13,7 @@ import java.io.Reader;
  * <h2>面向流的读取操作工具.</h2>
  * 该类操作器用于操作流
  * <p>
- * {@link #read(int)} 在不同的流作为操作对象时会有语义上的差别，请查看文档
+ * {@link #read(int)} 在不同的流作为操作对象时会有语义上的差别，请查看实现文档
  *
  * @author fybug
  * @version 0.0.1
@@ -21,19 +21,21 @@ import java.io.Reader;
  */
 public
 interface InOfStream<O extends Closeable, D> extends Operator<O> {
+    /** null BuffReader */
     BufferedReader EMPY_BUFF_READ = new BufferedReader(Reader.nullReader());
+    /** null BuffInput */
     BufferedInputStream EMPY_BUFF_INPUT = new BufferedInputStream(InputStream.nullInputStream());
 
     /**
-     * 读取操作对象中的所有数据
+     * 从操作对象中读取所有的数据
      *
-     * @return all data
+     * @return all data,can`t read will to {@code null}
      */
     @Nullable
     default
     D readAll() { return read(Integer.MAX_VALUE); }
 
-    /** 同时执行 {@link #readAll()} 和 {@link #close()} */
+    /** run task of {@link #readAll()} and {@link #close()} */
     @Nullable
     default
     D readAll_And_Close() {
@@ -47,11 +49,11 @@ interface InOfStream<O extends Closeable, D> extends Operator<O> {
     }
 
     /**
-     * 读取指定长度的数据
+     * 从操作对象中读取指定数量的数据
      *
-     * @param size 数据长度
+     * @param size data`s size
      *
-     * @return data
+     * @return data, can`t read and {@code size < 0} will to {@code null}
      */
     @Nullable
     D read(int size);
@@ -67,6 +69,13 @@ interface InOfStream<O extends Closeable, D> extends Operator<O> {
         }
     }
 
+    /**
+     * 转化为缓冲实现流
+     *
+     * @param reader input
+     *
+     * @return {@link #EMPY_BUFF_INPUT} of param is null
+     */
     @NotNull
     static
     BufferedInputStream ofBuffStream(@Nullable InputStream reader) {
@@ -77,6 +86,13 @@ interface InOfStream<O extends Closeable, D> extends Operator<O> {
         return new BufferedInputStream(reader);
     }
 
+    /**
+     * 转化为缓冲实现流
+     *
+     * @param reader reader
+     *
+     * @return {@link #EMPY_BUFF_READ} of param is null
+     */
     @NotNull
     static
     BufferedReader ofBuffStream(@Nullable Reader reader) {

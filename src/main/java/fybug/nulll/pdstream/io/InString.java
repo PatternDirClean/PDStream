@@ -5,8 +5,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.util.Arrays;
-import java.util.List;
+import java.util.stream.Stream;
 
 import fybug.nulll.pdstream.InOfStream;
 
@@ -17,6 +16,8 @@ import fybug.nulll.pdstream.InOfStream;
  *
  * @author fybug
  * @version 0.0.1
+ * @see InOfStream#EMPY_BUFF_READ
+ * @see InOfStream#ofBuffStream(Reader)
  * @since io 0.0.1
  */
 public
@@ -37,9 +38,9 @@ class InString implements InOfStream<Reader, String> {
     InString(@Nullable Reader reader) { target = InOfStream.ofBuffStream(reader); }
 
     /**
-     * 读取一行数据
+     * reads lines data
      *
-     * @return line
+     * @return line, can`t reads will to {@code null}
      */
     @Nullable
     public
@@ -60,25 +61,16 @@ class InString implements InOfStream<Reader, String> {
     }
 
     /**
-     * 按行读取所有数据数据
+     * 处理所有行数据
      *
-     * @return lines
+     * @return lines stream
      */
     @Nullable
     public
-    List<String> readAllLine() {
-        List<String> list;
-
+    Stream<String> readAllLine() {
         synchronized ( this ){
-            list = Arrays.asList(((BufferedReader) original()).lines()
-                                                              .parallel()
-                                                              .filter(v -> !v.trim().isEmpty())
-                                                              .toArray(String[]::new));
+            return ((BufferedReader) original()).lines().parallel();
         }
-
-        if (list.size() == 0)
-            return null;
-        return list;
     }
 
     @Nullable

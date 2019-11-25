@@ -6,7 +6,7 @@ tasks.withType(JavaCompile) {
     options.encoding = "UTF-8"
 }
 
-version '0.0.1'
+version 'restart-0.0.1'
 apply plugin: 'idea'
 apply plugin: 'java'
 sourceCompatibility = 13

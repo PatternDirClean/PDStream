@@ -14,6 +14,8 @@ import fybug.nulll.pdstream.InOfStream;
  *
  * @author fybug
  * @version 0.0.1
+ * @see InOfStream#EMPY_BUFF_INPUT
+ * @see InOfStream#ofBuffStream(InputStream)
  * @since io 0.0.1
  */
 public
@@ -37,10 +39,12 @@ class InByte implements InOfStream<InputStream, byte[]> {
     @Nullable
     public
     byte[] read(int size) {
+        /* check:指定长度是否超过位置 */
         if (size < 0)
             return null;
         else if (size == 0)
             return new byte[0];
+        /* // check */
 
         byte[] bytes;
 

@@ -13,7 +13,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * <h2>面向流的输出操作工具.</h2>
- * {@link #write(Object, int)} 在不同的流作为操作对象时会有语义上的差别，请查看文档
+ * {@link #write(Object, int)} 在不同的流作为操作对象时会有语义上的差别，请查看实现文档
  * <pre>可使用操作缓存器 {@link #append(Object)} 进行并联操作
  * var out = new OutByte();
  * var bytes = new byte[0];
@@ -26,31 +26,33 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public
 interface OutOfStream<O extends Closeable & Flushable, D> extends Operator<O>, Flushable {
+    /** null BuffWriter */
     BufferedWriter EMPY_BUFF_WRITER = new BufferedWriter(Writer.nullWriter());
+    /** null BuffOutput */
     BufferedOutputStream EMPY_BUFF_OUTPUT =
             new BufferedOutputStream(OutputStream.nullOutputStream());
 
     /**
-     * 输出数据到操作对象中
+     * 写入数据到操作对象中
      *
      * @param data data
      *
-     * @return 是否成功操作
+     * @return is successful?
      */
     default
     boolean write(@Nullable D data) { return write(data, Integer.MAX_VALUE); }
 
     /**
-     * 截取指定长度数据输出
+     * 写入指定大小的数据到操作对象中
      *
      * @param data data
-     * @param len  输出长度
+     * @param len  data`s size
      *
-     * @return 是否成功操作
+     * @return is successful?
      */
     boolean write(@Nullable D data, int len);
 
-    /** 同时执行 {@link #write(D)} 和 {@link #flush()} 操作 */
+    /** run task of {@link #write(D)} 和 {@link #flush()} 操作 */
     default
     boolean write_And_Flush(@Nullable D data) {
         synchronized ( this ){
@@ -65,9 +67,9 @@ interface OutOfStream<O extends Closeable & Flushable, D> extends Operator<O>, F
     /**
      * 通过操作缓存器进行并联操作
      *
-     * @param data 第一个数据
+     * @param data first data
      *
-     * @return 操作缓存器
+     * @return Buff
      *
      * @see Buff
      */
@@ -153,11 +155,13 @@ interface OutOfStream<O extends Closeable & Flushable, D> extends Operator<O>, F
         @Override
         public
         void close() {
-            flush();
+            synchronized ( tagre ){
+                flush();
 
-            try {
-                tagre.close();
-            } catch ( IOException ignored ) {
+                try {
+                    tagre.close();
+                } catch ( IOException ignored ) {
+                }
             }
         }
 
@@ -174,8 +178,10 @@ interface OutOfStream<O extends Closeable & Flushable, D> extends Operator<O>, F
         public
         void flush() {
             try {
-                for ( @NotNull D d : linkedList )
-                    flush0(d);
+                synchronized ( tagre ){
+                    for ( @NotNull D d : linkedList )
+                        flush0(d);
+                }
 
                 linkedList.clear();
                 tagre.flush();
@@ -184,6 +190,13 @@ interface OutOfStream<O extends Closeable & Flushable, D> extends Operator<O>, F
         }
     }
 
+    /**
+     * 转化为缓冲实现流
+     *
+     * @param writer writer
+     *
+     * @return {@link #EMPY_BUFF_WRITER} of param is null
+     */
     @NotNull
     static
     BufferedWriter toBuffWriter(@Nullable Writer writer) {
@@ -194,6 +207,13 @@ interface OutOfStream<O extends Closeable & Flushable, D> extends Operator<O>, F
         return new BufferedWriter(writer);
     }
 
+    /**
+     * 转化为缓冲实现流
+     *
+     * @param writer output
+     *
+     * @return {@link #EMPY_BUFF_OUTPUT} of param is null
+     */
     @NotNull
     static
     BufferedOutputStream toBuffWriter(@Nullable OutputStream writer) {

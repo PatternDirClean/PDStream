@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * <h2>PDStream 附加工具包.</h2>
@@ -56,6 +57,13 @@ class OperatorTOOL {
         return list;
     }
 
+    /**
+     * 整合字符串
+     *
+     * @param strings string[]
+     *
+     * @return {@code []} of {@code ""}
+     */
     @NotNull
     public static
     String combineSring(String... strings) {
@@ -69,8 +77,16 @@ class OperatorTOOL {
         return stringBuff.toString();
     }
 
+    /**
+     * 整合行数据列表
+     *
+     * @param collection lines list
+     *
+     * @return {@code null} | [] of {@code ""}
+     */
+    @NotNull
     public static
-    String linesString(Collection<String> collection) {
+    String linesString(@Nullable Collection<String> collection) {
         if (collection == null || collection.size() == 0)
             return "";
 
@@ -78,7 +94,7 @@ class OperatorTOOL {
         var lineseparator = System.lineSeparator(); // 换行符
 
         collection.stream()
-                  .filter(v -> v != null && !v.isEmpty())
+                  .filter(v -> v != null && !v.trim().isEmpty())
                   .forEach(v -> strbuff.append(v).append(lineseparator));
 
         /* 移除尾部换行符 */
@@ -93,7 +109,7 @@ class OperatorTOOL {
      *
      * @param bytes byte
      *
-     * @return 传入空数据返回 {@code ""}
+     * @return empty of {@code ""}
      */
     @NotNull
     public static
@@ -132,11 +148,12 @@ class OperatorTOOL {
      *
      * @param bytes byte
      *
-     * @return 反序列化后的对象
+     * @return Serializable
      */
     @Nullable
     public static
     java.io.Serializable byteSerializable(@Nullable byte[] bytes) {
+        // check
         if (bytes == null || bytes.length == 0)
             return null;
 
@@ -157,17 +174,19 @@ class OperatorTOOL {
     /**
      * 序列化对象为字节
      *
-     * @param o 可序列化对象
+     * @param o Serializable
      *
      * @return byte
      */
     @NotNull
     public static
     byte[] serializable(@Nullable java.io.Serializable o) {
+        /* check:校验 */
         if (o == null)
             return new byte[0];
         if (o instanceof String)
             return ofByte((String) o);
+        /* // check */
 
         var buff = new ByteArrayOutputStream();
 
