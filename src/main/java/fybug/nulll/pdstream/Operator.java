@@ -1,13 +1,12 @@
 package fybug.nulll.pdstream;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.BufferedReader;
 import java.io.Closeable;
-import java.io.Reader;
 
 /**
  * <h2>操作器基类.</h2>
- * 提供绑定接口 {@link #bin(Object)} 并提供获原始操作对象的接口 {@link #original()}
+ * 操作器是读写工具的基类
+ * 定义了绑定接口 {@link #bin(Object)} 并提供获原始操作对象的接口 {@link #original()}
  *
  * @param <O> 操作对象
  *
@@ -19,7 +18,7 @@ interface Operator<O> extends Closeable {
     /**
      * 修改要操作的对象
      *
-     * @param operator 要操作的流
+     * @param operator 要操作的对象
      *
      * @return this
      */
