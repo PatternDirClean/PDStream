@@ -20,15 +20,20 @@ import static fybug.nulll.pdstream.OPC.BYTE_READ_BUFF;
  *
  * @author fybug
  * @version 0.0.1
+ * @since io 0.0.2
  */
 public
 class ReaderInputStream extends InputStream {
     private InString reader;
     private ByteBuffer nowbuff = ByteBuffer.wrap(new byte[0]);
 
+    /*-------------------------------------------------------------------------------------------*/
+
     public
     ReaderInputStream(@NotNull Reader reader)
     { this.reader = new InString(IOT.toBuffRead(reader)); }
+
+    /*-------------------------------------------------------------------------------------------*/
 
     @Override
     public
@@ -53,6 +58,8 @@ class ReaderInputStream extends InputStream {
         }
         return true;
     }
+
+    /*-------------------------------------------------------------------------------------------*/
 
     @Override
     public

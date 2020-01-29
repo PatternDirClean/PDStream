@@ -15,14 +15,19 @@ import static fybug.nulll.pdstream.OPC.CHARSET;
  *
  * @author fybug
  * @version 0.0.1
+ * @since io 0.0.2
  */
 public
 class WriterOutputStream extends OutputStream {
     private OutString stream;
     private ByteArrayOutputStream buff = new ByteArrayOutputStream();
 
+    /*-------------------------------------------------------------------------------------------*/
+
     public
     WriterOutputStream(@NotNull Writer writer) { stream = new OutString(writer); }
+
+    /*-------------------------------------------------------------------------------------------*/
 
     @Override
     public
@@ -31,6 +36,8 @@ class WriterOutputStream extends OutputStream {
             buff.write(b);
         }
     }
+
+    /*-------------------------------------------------------------------------------------------*/
 
     @Override
     public

@@ -2,11 +2,12 @@ package fybug.nulll.pdstream.io;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
-import fybug.nulll.pdstream.OutOfStream;
+import fybug.nulll.pdstream.OutOf;
+
+import static fybug.nulll.pdstream.OPC.EMPY_BUFF_OUTPUT;
 
 /**
  * <h2>作用于字节的写入器.</h2>
@@ -14,18 +15,18 @@ import fybug.nulll.pdstream.OutOfStream;
  *
  * @author fybug
  * @version 0.0.1
- * @see OutOfStream#EMPY_BUFF_OUTPUT
- * @see OutOfStream#toBuffWriter(OutputStream)
  * @since io 0.0.1
  */
 public
-class OutByte implements OutOfStream<OutputStream, byte[]> {
+class OutByte implements OutOf<OutputStream, byte[]> {
     /** 操作目标 */
-    @NotNull private BufferedOutputStream target;
+    @NotNull private OutputStream target;
+
+    /*-------------------------------------------------------------------------------------------*/
 
     /** 空的操作器 */
     public
-    OutByte() {target = OutOfStream.EMPY_BUFF_OUTPUT;}
+    OutByte() {target = EMPY_BUFF_OUTPUT;}
 
     /**
      * 初始化操作器
@@ -33,7 +34,9 @@ class OutByte implements OutOfStream<OutputStream, byte[]> {
      * @param outputsteam 初始操作目标
      */
     public
-    OutByte(@Nullable OutputStream outputsteam) {target = OutOfStream.toBuffWriter(outputsteam);}
+    OutByte(@NotNull OutputStream outputsteam) {target = outputsteam;}
+
+    /*-------------------------------------------------------------------------------------------*/
 
     @Override
     public
@@ -65,12 +68,14 @@ class OutByte implements OutOfStream<OutputStream, byte[]> {
         }
     }
 
+    /*-------------------------------------------------------------------------------------------*/
+
     @Override
     @NotNull
     public
     OutByte bin(@Nullable OutputStream operator) {
         synchronized ( this ){
-            target = OutOfStream.toBuffWriter(operator);
+            target = operator;
         }
         return this;
     }
@@ -79,6 +84,8 @@ class OutByte implements OutOfStream<OutputStream, byte[]> {
     @NotNull
     public
     OutputStream original() { return target; }
+
+    /*-------------------------------------------------------------------------------------------*/
 
     /**
      * <h2>字节缓存桥接.</h2>

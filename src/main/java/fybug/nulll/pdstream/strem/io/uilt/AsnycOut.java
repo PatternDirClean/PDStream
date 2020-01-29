@@ -59,7 +59,6 @@ class AsnycOut extends AsnycRun<AsnycOut> implements Flushable {
     @Override
     protected
     void close0() {
-        out.flush();
         out.close();
     }
 

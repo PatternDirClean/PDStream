@@ -2,30 +2,35 @@ package fybug.nulll.pdstream.io;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import fybug.nulll.pdstream.InOfStream;
+import fybug.nulll.pdstream.InOf;
+import fybug.nulll.pdstream.OPC;
+
+import static fybug.nulll.pdstream.OPC.BYTE_DEFAULT_DATA;
+import static fybug.nulll.pdstream.OPC.BYTE_EMPTY_DATA;
+import static fybug.nulll.pdstream.OPC.EMPY_BUFF_INPUT;
 
 /**
- * <h2>作用于字节的读取器.</h2>
+ * <h2>字节读取器.</h2>
  * 操作对象为 {@link InputStream}
  *
  * @author fybug
  * @version 0.0.1
- * @see InOfStream#EMPY_BUFF_INPUT
- * @see InOfStream#ofBuffStream(InputStream)
+ * @see OPC#BYTE_EMPTY_DATA
  * @since io 0.0.1
  */
 public
-class InByte implements InOfStream<InputStream, byte[]> {
+class InByte implements InOf<InputStream, byte[]> {
     /** 操作目标 */
-    @NotNull private BufferedInputStream target;
+    @NotNull private InputStream target;
+
+    /*--------------------------------------------------------------------------------------------*/
 
     /** 空的操作器 */
     public
-    InByte() { target = InOfStream.EMPY_BUFF_INPUT; }
+    InByte() { target = EMPY_BUFF_INPUT; }
 
     /**
      * 初始化操作器
@@ -33,7 +38,9 @@ class InByte implements InOfStream<InputStream, byte[]> {
      * @param inputStream 初始操作目标
      */
     public
-    InByte(@Nullable InputStream inputStream) {target = InOfStream.ofBuffStream(inputStream);}
+    InByte(@NotNull InputStream inputStream) {target = inputStream;}
+
+    /*--------------------------------------------------------------------------------------------*/
 
     @Override
     @Nullable
@@ -41,9 +48,9 @@ class InByte implements InOfStream<InputStream, byte[]> {
     byte[] read(int size) {
         /* check:指定长度是否超过位置 */
         if (size < 0)
-            return null;
+            return BYTE_EMPTY_DATA;
         else if (size == 0)
-            return new byte[0];
+            return BYTE_DEFAULT_DATA;
         /* // check */
 
         byte[] bytes;
@@ -53,20 +60,22 @@ class InByte implements InOfStream<InputStream, byte[]> {
                 bytes = original().readNBytes(size);
             }
         } catch ( IOException e ) {
-            return null;
+            return BYTE_EMPTY_DATA;
         }
 
         if (bytes.length == 0)
-            return null;
+            return BYTE_EMPTY_DATA;
         return bytes;
     }
+
+    /*--------------------------------------------------------------------------------------------*/
 
     @NotNull
     @Override
     public
-    InByte bin(@Nullable InputStream operator) {
+    InByte bin(@NotNull InputStream operator) {
         synchronized ( this ){
-            target = InOfStream.ofBuffStream(operator);
+            target = operator;
         }
         return this;
     }

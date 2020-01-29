@@ -2,34 +2,31 @@ package fybug.nulll.pdstream.io;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.io.Writer;
 
-import fybug.nulll.pdstream.OutOfStream;
+import fybug.nulll.pdstream.OutOf;
+
+import static fybug.nulll.pdstream.OPC.EMPY_BUFF_WRITER;
 
 /**
  * <h2>作用于字符串的写入器.</h2>
  * 操作对象为 {@link Writer}
- * 可进行以单行字符为对象的操作
- * 操作缓存器 {@link BuffOf} 追加行操作
  *
  * @author fybug
  * @version 0.0.1
- * @see OutOfStream#EMPY_BUFF_WRITER
- * @see OutOfStream#toBuffWriter(Writer)
  * @since io 0.0.1
  */
 public
-class OutString implements OutOfStream<Writer, String> {
+class OutString implements OutOf<Writer, String> {
     /** 操作目标 */
-    @NotNull private BufferedWriter target;
+    @NotNull private Writer target;
+
+    /*-------------------------------------------------------------------------------------------*/
 
     /** 空的操作器 */
     public
-    OutString() {target = OutOfStream.EMPY_BUFF_WRITER;}
+    OutString() {target = EMPY_BUFF_WRITER;}
 
     /**
      * 初始化操作器
@@ -37,33 +34,9 @@ class OutString implements OutOfStream<Writer, String> {
      * @param writer 初始操作目标
      */
     public
-    OutString(@Nullable Writer writer) {target = OutOfStream.toBuffWriter(writer);}
+    OutString(@NotNull Writer writer) {target = writer;}
 
-    /**
-     * 写入一行数据
-     * 输入时插入当前系统的换行符 {@link System#lineSeparator()}
-     *
-     * @param data 输出的一行数据
-     *
-     * @return 是否成功
-     */
-    public
-    boolean writeLine(@Nullable String data) {
-        try {
-            synchronized ( this ){
-                // 写入换行符以前的数据
-                if (write(data)) {
-                    // new lines
-                    target.newLine();
-                    target.flush();
-                    return true;
-                }
-
-            }
-        } catch ( IOException ignored ) {
-        }
-        return false;
-    }
+    /*-------------------------------------------------------------------------------------------*/
 
     @Override
     public
@@ -94,14 +67,17 @@ class OutString implements OutOfStream<Writer, String> {
         synchronized ( this ){
             return new BuffOf(original(), data);
         }
+
     }
+
+    /*-------------------------------------------------------------------------------------------*/
 
     @NotNull
     @Override
     public
-    OutString bin(@Nullable Writer operator) {
+    OutString bin(@NotNull Writer operator) {
         synchronized ( this ){
-            target = OutOfStream.toBuffWriter(operator);
+            target = operator;
         }
         return this;
     }
@@ -110,6 +86,8 @@ class OutString implements OutOfStream<Writer, String> {
     @Override
     public
     Writer original() { return target; }
+
+    /*-------------------------------------------------------------------------------------------*/
 
     /**
      * <h2>字符缓存桥接.</h2>
@@ -147,28 +125,4 @@ class OutString implements OutOfStream<Writer, String> {
             return this;
         }
     }
-
-    /**
-     * 转化字节处理器为字符处理器
-     *
-     * @param outByte OutByte
-     *
-     * @return new OutString
-     */
-    @NotNull
-    public static
-    OutString toOutString(@NotNull OutByte outByte)
-    {return new OutString(new OutputStreamWriter(outByte.original()));}
-
-    /**
-     * 转化为字符处理器
-     *
-     * @param outputStream OutPut
-     *
-     * @return new OutString
-     */
-    @NotNull
-    public static
-    OutString toOutString(@NotNull OutputStream outputStream)
-    {return new OutString(new OutputStreamWriter(outputStream));}
 }

@@ -2,30 +2,33 @@ package fybug.nulll.pdstream.io;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.Reader;
-import java.util.stream.Stream;
 
-import fybug.nulll.pdstream.InOfStream;
+import fybug.nulll.pdstream.InOf;
+import fybug.nulll.pdstream.OPC;
+
+import static fybug.nulll.pdstream.OPC.CHAR_DEFAULT_DATA;
+import static fybug.nulll.pdstream.OPC.CHAR_EMPTY_DATA;
+import static fybug.nulll.pdstream.OPC.CHAR_READ_BUFF;
+import static fybug.nulll.pdstream.OPC.EMPY_BUFF_READ;
 
 /**
  * <h2>作用于字符串的读取器.</h2>
  * 操作对象为 {@link Reader}
- * 可进行以单行字符为对象的操作
  *
  * @author fybug
  * @version 0.0.1
- * @see InOfStream#EMPY_BUFF_READ
- * @see InOfStream#ofBuffStream(Reader)
+ * @see OPC#CHAR_EMPTY_DATA
+ * @see OPC#CHAR_READ_BUFF
  * @since io 0.0.1
  */
 public
-class InString implements InOfStream<Reader, String> {
+class InString implements InOf<Reader, String> {
     /** 操作目标 */
-    @NotNull private BufferedReader target;
+    @NotNull private Reader target;
+
+    /*--------------------------------------------------------------------------------------------*/
 
     /** 空的操作器 */
     public
@@ -37,75 +40,55 @@ class InString implements InOfStream<Reader, String> {
      * @param reader 初始操作对象
      */
     public
-    InString(@Nullable Reader reader) { target = InOfStream.ofBuffStream(reader); }
+    InString(@NotNull Reader reader) { target = reader; }
 
-    /**
-     * reads lines data
-     *
-     * @return line, can`t reads will to {@code null}
-     */
-    @Nullable
-    public
-    String readLine() {
-        String readdata;
-
-        try {
-            synchronized ( this ){
-                readdata = ((BufferedReader) original()).readLine();
-            }
-        } catch ( IOException e ) {
-            return null;
-        }
-
-        if (readdata == null)
-            return null;
-        return readdata.trim();
-    }
-
-    /**
-     * 处理所有行数据
-     *
-     * @return lines stream
-     */
-    @Nullable
-    public
-    Stream<String> readAllLine() {
-        synchronized ( this ){
-            return ((BufferedReader) original()).lines().parallel();
-        }
-    }
+    /*--------------------------------------------------------------------------------------------*/
 
     @Nullable
     @Override
     public
     String read(int size) {
         if (size < 0)
-            return null;
+            return CHAR_EMPTY_DATA;
         else if (size == 0)
-            return "";
+            return CHAR_DEFAULT_DATA;
 
-        var buff = new char[size];
-        var readsize = 0;
+        var builder = new StringBuilder();
+        var mark = 0;
+        var buff = new char[CHAR_READ_BUFF];
 
         try {
-            synchronized ( this ){
-                readsize = original().read(buff);
+            while( original().ready() ){
+                if (mark >= size)
+                    break;
+
+                var readsize = original().read(buff, 0,
+                                               mark + CHAR_READ_BUFF < size ? CHAR_READ_BUFF
+                                                       : size - mark);
+                if (readsize == -1)
+                    break;
+                mark += readsize;
+
+                builder.append(buff, 0, readsize);
             }
         } catch ( IOException e ) {
-            return null;
+            return CHAR_EMPTY_DATA;
         }
 
-        if (readsize > 0)
-            return new String(buff, 0, readsize);
-        return null;
+        if (builder.length() == 0)
+            return CHAR_EMPTY_DATA;
+
+        return builder.toString();
     }
+
+    /*--------------------------------------------------------------------------------------------*/
 
     @NotNull
     @Override
     public
-    InString bin(@Nullable Reader operator) {
+    InString bin(@NotNull Reader operator) {
         synchronized ( this ){
-            target = InOfStream.ofBuffStream(operator);
+            target = operator;
         }
         return this;
     }
@@ -114,28 +97,4 @@ class InString implements InOfStream<Reader, String> {
     @Override
     public
     Reader original() { return target; }
-
-    /**
-     * 转化为字符处理器
-     *
-     * @param inputStream input
-     *
-     * @return new InString
-     */
-    @NotNull
-    public static
-    InString toInString(@NotNull InputStream inputStream)
-    { return new InString(new InputStreamReader(inputStream)); }
-
-    /**
-     * 转化字节处理器为字符处理器
-     *
-     * @param inByte InByte
-     *
-     * @return new InString
-     */
-    @NotNull
-    public static
-    InString toInString(@NotNull InByte inByte)
-    { return new InString(new InputStreamReader(inByte.original())); }
 }

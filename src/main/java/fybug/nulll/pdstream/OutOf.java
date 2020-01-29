@@ -56,6 +56,18 @@ interface OutOf<O extends Closeable & Flushable, D> extends Operator<O>, Flushab
         }
     }
 
+    /** 同时运行 {@link #write(D)} 和 {@link #close()} */
+    default
+    boolean writeClose(@Nullable D data) {
+        synchronized ( this ){
+            try {
+                return write(data);
+            } finally {
+                close();
+            }
+        }
+    }
+
     /*---------------------------------*/
 
     /**
@@ -88,6 +100,7 @@ interface OutOf<O extends Closeable & Flushable, D> extends Operator<O>, Flushab
     void close() {
         try {
             synchronized ( this ){
+                original().flush();
                 original().close();
             }
         } catch ( IOException ignored ) {
