@@ -8,8 +8,6 @@ tasks.withType(JavaCompile) {
 }
 
 version 'restart-0.0.1'
-sourceCompatibility = 13
-targetCompatibility = 13
 
 repositories {
     jcenter()
