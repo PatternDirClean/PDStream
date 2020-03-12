@@ -12,5 +12,10 @@
  * @author fybug
  * @version restart-0.0.1
  * @since jdk 13
+ * <p>
+ * todo 缓存式
+ * todo 锁工具
+ * todo 文件监听
+ * todo 字符流行操作，列表，stream
  */
 package fybug.nulll.pdstream;

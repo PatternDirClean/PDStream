@@ -7,6 +7,8 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.StringReader;
 
+import fybug.nulll.pdstream.io.foundation.ReaderInputStream;
+
 import static fybug.nulll.pdstream.RunTest.testdata;
 
 public

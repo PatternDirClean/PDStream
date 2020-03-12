@@ -7,6 +7,8 @@ import org.junit.Test;
 import java.io.CharArrayWriter;
 import java.io.IOException;
 
+import fybug.nulll.pdstream.io.foundation.WriterOutputStream;
+
 import static fybug.nulll.pdstream.RunTest.testdata;
 
 public

@@ -7,19 +7,32 @@ tasks.withType(JavaCompile) {
     options.encoding = "UTF-8"
 }
 
+group = 'fybug.nulll'
 version 'restart-0.0.1'
+sourceCompatibility = '13'
+targetCompatibility = '13'
+
+configurations {
+    developmentOnly
+    runtimeClasspath {
+        extendsFrom developmentOnly
+    }
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
 
 repositories {
-    jcenter()
     mavenLocal()
-    mavenCentral()
-    maven { url "http://repo.spring.io/release" }
-    maven { url "http://repo.spring.io/milestone" }
-    maven { url "http://repo.spring.io/snapshot" }
-    maven { url "https://plugins.gradle.org/m2/" }
+    maven { url "https://maven.aliyun.com/repository/jcenter" }
 }
 
 dependencies {
-    testCompile group: 'junit', name: 'junit', version: '4.12'
     implementation fileTree(dir: 'lib', includes: ['*.jar'])
+    annotationProcessor 'org.projectlombok:lombok'
+    compileOnly 'org.projectlombok:lombok'
+}
+
+test {
+    useJUnitPlatform()
 }

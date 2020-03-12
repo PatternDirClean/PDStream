@@ -1,5 +1,6 @@
 <p align="center">
 <img src="https://images.gitee.com/uploads/images/2018/0908/101534_53a66adb_2071767.png" width="210" height="210" alt="Icon"/>
+</p>
 
 # PDStrem
 
@@ -7,10 +8,7 @@
 ![JDK 13](https://img.shields.io/badge/JDK-13+-green.svg "SDK")
 ![Apache 2](https://img.shields.io/badge/license-Apache%202-blue.svg "License")
 
--- 主页：[（搭建中）](#) --
-
 -- [Java Doc](https://apidoc.gitee.com/PatternDirClean/PDStream) --
-</p>
 
 -------------------------------------------------------------------------------
 
@@ -51,12 +49,15 @@
 
 要导入其依赖库,在项目的 **lib** 文件夹下可以找到
 
+依赖的同系列的项目
+- [PDConcurrent](../PDConcurrent)
+
 可通过 **WIKI** / **主页** 或者 **测试类** 查看示例
 
 ## 分支说明
-[dev-master](https://gitee.com/PatternDirClean/PDStream/tree/dev-master) :当前的开发分支，可以拿到最新的每夜版 jar
+dev-master：当前的开发分支，可以拿到最新的每夜版 jar
 
-[releases](https://gitee.com/PatternDirClean/PDStream/tree/releases/) :当前发布分支，稳定版的源码
+releases：当前发布分支，稳定版的源码
 
 -------------------------------------------------------------------------------
 
