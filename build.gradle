@@ -29,8 +29,8 @@ repositories {
 
 dependencies {
     implementation fileTree(dir: 'lib', includes: ['*.jar'])
-    annotationProcessor 'org.projectlombok:lombok'
-    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok:1.18.10'
+    compileOnly 'org.projectlombok:lombok:1.18.10'
 }
 
 test {
