@@ -3,6 +3,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.StringWriter;
 import java.io.Writer;
 
 import fybug.nulll.pdstream.io.uilt.AsnyOut;
@@ -14,13 +15,47 @@ import lombok.experimental.UtilityClass;
  * <p>
  * 构造生成的工具类为 {@link Out}，对应的异步工具类为 {@link AsnyOut}<br/>
  * 读取过程失败返回 {@code false}
+ * <br/>
+ * <pre>使用示例
+ *     public static
+ *     void main(String[] args) {
+ *         var base = new StringWriter();
+ *         // 追加式写入
+ *         OutOf.write(base).append("a").append("v").append("qwe").append("\n")
+ *                          .flush();
+ *         OutOf.writeFlush(base)
+ *              // 输出完成自动关闭
+ *              .close()
+ *              // 异常处理
+ *              .exception(e -> e.printStackTrace(System.out))
+ *              // 输出
+ *              .write("poip");
+ *         System.out.println(base.toString());
+ *     }
+ * </pre>
+ * <pre>使用异步处理
+ *     public static
+ *     void main(String[] args) {
+ *         var base = new StringWriter();
+ *         // 追加式写入
+ *         OutOf.writeFlush(base).asny().append("a").append("v").append("qwe").append("\n")
+ *                                      .write();
+ *         OutOf.writeFlush(base)
+ *              // 启用异步操作
+ *              .asny().close()
+ *              // 异常处理
+ *              .exception(e -> e.printStackTrace(System.out))
+ *              // 输出
+ *              .write("poip", succer -> {System.out.println(base.toString());});
+ *     }
+ * </pre>
  *
  * @author fybug
  * @version 0.0.2
  * @since io 0.0.1
  */
 @UtilityClass
-public // todo test 示例
+public
 class OutOf {
     /**
      * 字节输出工具实现
@@ -29,7 +64,7 @@ class OutOf {
      * @version 0.0.1
      * @since OutOf 0.0.2
      */
-    private final
+    private final static
     class bytew extends Out<OutputStream, byte[]> {
         private
         bytew(OutputStream outputStream, boolean needFlush)
@@ -74,7 +109,7 @@ class OutOf {
      * @version 0.0.1
      * @since OutOf 0.0.2
      */
-    private final
+    private final static
     class charw extends Out<Writer, CharSequence> {
         private
         charw(Writer writer, boolean needFlush) { super(writer, needFlush, CharSequence.class); }

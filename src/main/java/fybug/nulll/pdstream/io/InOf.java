@@ -14,13 +14,40 @@ import lombok.experimental.UtilityClass;
  * <p>
  * 构造生成的工具类为 {@link In}，对应的异步工具类为 {@link AsnyIn}<br/>
  * 读取过程失败返回 {@code null}
+ * <br/>
+ * <pre>使用示例
+ *     public static
+ *     void main(String[] args) {
+ *         var base = new StringReader("asdas");
+ *         System.out.println(InOf.readAll(base)
+ *                                // 读取完成后自动关闭
+ *                                .close()
+ *                                // 异常处理接口
+ *                                .exception(e -> e.printStackTrace(System.out))
+ *                                // 触发
+ *                                .read());
+ *     }
+ * </pre>
+ * <pre>启用异步操作
+ *     public static
+ *     void main(String[] args) {
+ *         var base = new StringReader("asdas");
+ *         InOf.readAll(base)
+ *             // 启用异步读取
+ *             .asny().close()
+ *             // 异常处理接口
+ *             .exception(e -> e.printStackTrace(System.out))
+ *             // 触发
+ *             .read(System.out::println);
+ *     }
+ * </pre>
  *
  * @author fybug
  * @version 0.0.2
  * @since io 0.0.1
  */
 @UtilityClass
-public // todo test 示例
+public
 class InOf {
     /**
      * 生成读取工具，指定读取长度
