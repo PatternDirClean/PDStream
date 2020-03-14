@@ -16,7 +16,7 @@ import java.util.function.Consumer;
  * @since uilt 0.0.1
  */
 public
-interface InorOut<U extends InorOut<?>> {
+interface InorOut<U extends InorOut<U>> {
     /** 操作完成后关闭 */
     @NotNull
     U close();

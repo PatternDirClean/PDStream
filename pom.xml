@@ -6,7 +6,7 @@
 
     <groupId>fybug.nulll</groupId>
     <artifactId>PDSteam</artifactId>
-    <version>restart-0.0.1</version>
+    <version>restart-0.1.1</version>
     <build>
         <plugins>
             <plugin>

@@ -3,17 +3,16 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.StringWriter;
 import java.io.Writer;
 
-import fybug.nulll.pdstream.io.uilt.AsnyOut;
 import fybug.nulll.pdstream.io.uilt.Out;
+import fybug.nulll.pdstream.io.uilt.OutBuild;
 import lombok.experimental.UtilityClass;
 
 /**
  * <h2>输出工具.</h2>
  * <p>
- * 构造生成的工具类为 {@link Out}，对应的异步工具类为 {@link AsnyOut}<br/>
+ * 构造生成的工具类为 {@link Out}，对应的异步工具类为 {@link Out.AsyncOut}<br/>
  * 读取过程失败返回 {@code false}
  * <br/>
  * <pre>使用示例
@@ -38,20 +37,21 @@ import lombok.experimental.UtilityClass;
  *     void main(String[] args) {
  *         var base = new StringWriter();
  *         // 追加式写入
- *         OutOf.writeFlush(base).asny().append("a").append("v").append("qwe").append("\n")
+ *         OutOf.writeFlush(base).async().append("a").append("v").append("qwe").append("\n")
  *                                      .write();
  *         OutOf.writeFlush(base)
  *              // 启用异步操作
- *              .asny().close()
+ *              .async().close()
  *              // 异常处理
  *              .exception(e -> e.printStackTrace(System.out))
  *              // 输出
  *              .write("poip", succer -> {System.out.println(base.toString());});
  *     }
  * </pre>
+ * 关于构造器的示例请查看 {@link OutBuild}
  *
  * @author fybug
- * @version 0.0.2
+ * @version 0.0.3
  * @since io 0.0.1
  */
 @UtilityClass
@@ -100,7 +100,7 @@ class OutOf {
     Out<OutputStream, byte[]> writeFlush(@NotNull OutputStream outputStream)
     { return new bytew(outputStream, true); }
 
-    /*--------------------------------------------------------------------------------------------*/
+    //----------------------------------------------------------------------------------------------
 
     /**
      * 字符输出工具实现
@@ -143,4 +143,29 @@ class OutOf {
     public
     Out<Writer, CharSequence> writeFlush(@NotNull Writer writer)
     { return new charw(writer, false); }
+
+    //----------------------------------------------------------------------------------------------
+
+    /**
+     * 创建输出工具构造器
+     *
+     * @param autoflush 是否自动 Flush
+     *
+     * @since OutBuild 0.0.3
+     */
+    @NotNull
+    public
+    OutBuild build(boolean autoflush) {
+        return new OutBuild() {
+            @NotNull
+            protected
+            Out<OutputStream, byte[]> build(@NotNull OutputStream outputStream)
+            { return new bytew(outputStream, autoflush); }
+
+            @NotNull
+            protected
+            Out<Writer, CharSequence> build(@NotNull Writer writer)
+            { return new charw(writer, autoflush); }
+        };
+    }
 }
