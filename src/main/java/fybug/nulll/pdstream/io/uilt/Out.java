@@ -260,7 +260,7 @@ class Out<O extends Flushable & Closeable, T> implements Flushable, InorOut<Out<
          */
         @Nullable
         public
-        Future<Boolean> read(@NotNull T data) {
+        Future<Boolean> write(@NotNull T data) {
             if (pool != null)
                 return pool.submit(() -> Out.this.write(data));
             else {

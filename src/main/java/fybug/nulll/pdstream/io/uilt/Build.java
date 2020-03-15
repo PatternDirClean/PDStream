@@ -12,7 +12,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.Accessors;
 
 /**
- * todo doc
+ * 读写工具构造器
+ * <p>
+ * 使用构造器中的配置构造读写工具
  *
  * @author fybug
  * @version 0.0.1
@@ -22,6 +24,7 @@ import lombok.experimental.Accessors;
 @Accessors( fluent = true, chain = true )
 abstract
 class Build<O extends Build<O>> implements InorOut<O> {
+
     /** 异常处理接口 */
     protected Consumer<IOException> exception = e -> {throw new RuntimeException();};
 
@@ -84,7 +87,7 @@ class Build<O extends Build<O>> implements InorOut<O> {
     /*--------------------------------------------------------------------------------------------*/
 
     /**
-     * todo doc
+     * 异步读写工具构造器
      *
      * @author fybug
      * @version 0.0.1

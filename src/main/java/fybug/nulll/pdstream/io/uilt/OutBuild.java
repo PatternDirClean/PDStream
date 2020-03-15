@@ -3,14 +3,47 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.OutputStream;
+import java.io.StringWriter;
 import java.io.Writer;
 import java.util.concurrent.ExecutorService;
 
 import fybug.nulll.pdstream.io.OutOf;
+import fybug.nulll.pdstream.io.uilt.Out.AsyncOut;
 import lombok.experimental.Accessors;
 
 /**
- * todo doc
+ * <h2>输出工具构造器.</h2>
+ * <p>
+ * 用于根据构造器的的配置构造输出工具<br/>
+ * 构造器赋予配置的方法和 {@link Out} 一样
+ * <br/>
+ * <pre>使用示例
+ *     public static
+ *     void main(String[] args) {
+ *         var build = OutOf.build(true);
+ *         // 赋予配置，自动关闭，异常处理
+ *         build.close().exception(e -> e.printStackTrace(System.out));
+ *
+ *         // 使用以上配置构造并输入数据
+ *         var w = new StringWriter();
+ *         build.of(w).write("asdqwdqd");
+ *         System.out.println(w);
+ *     }
+ * </pre>
+ * <pre>
+ *     public static
+ *     void main(String[] args) {
+ *         var build = OutOf.build(true)
+ *                          // 赋予配置，自动关闭，异常处理
+ *                          .close().exception(e -> e.printStackTrace(System.out))
+ *                          // 启用异步
+ *                          .async();
+ *
+ *         // 使用以上配置构造并输入数据
+ *         var w = new StringWriter();
+ *         build.of(w).write("asdqwdqd", suerr -> System.out.println(w));
+ *     }
+ * </pre>
  *
  * @author fybug
  * @version 0.0.1
@@ -67,10 +100,11 @@ class OutBuild extends Build<OutBuild> {
     /*--------------------------------------------------------------------------------------------*/
 
     /**
-     * todo doc
+     * <h2>异步输出工具构造器.</h2>
      *
      * @author fybug
      * @version 0.0.1
+     * @see AsyncOut
      * @since OutBuild 0.0.1
      */
     public final
@@ -88,7 +122,7 @@ class OutBuild extends Build<OutBuild> {
          */
         @NotNull
         public
-        Out<OutputStream, byte[]>.AsyncOut of(@NotNull OutputStream outputStream)
+        AsyncOut of(@NotNull OutputStream outputStream)
         {return OutBuild.this.of(outputStream).async(pool);}
 
         //-----------------------------------
@@ -100,7 +134,7 @@ class OutBuild extends Build<OutBuild> {
          */
         @NotNull
         public
-        Out<Writer, CharSequence>.AsyncOut of(@NotNull Writer writer)
+        AsyncOut of(@NotNull Writer writer)
         {return OutBuild.this.of(writer).async(pool);}
     }
 }

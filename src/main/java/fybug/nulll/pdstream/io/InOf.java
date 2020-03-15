@@ -132,7 +132,7 @@ class InOf {
 
             while( input.ready() && canRead > 0 ){
                 // 读取数据到缓冲区
-                readsize = input.read(buff, 0, Math.min(8192, canRead));
+                readsize = input.read(buff, 0, Math.min(1024, canRead));
 
                 // 莫得了
                 if (readsize < 1)

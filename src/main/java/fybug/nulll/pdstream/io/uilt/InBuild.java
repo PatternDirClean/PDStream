@@ -7,10 +7,41 @@ import java.io.Reader;
 import java.util.concurrent.ExecutorService;
 
 import fybug.nulll.pdstream.io.InOf;
+import fybug.nulll.pdstream.io.uilt.In.AsyncIn;
 import lombok.experimental.Accessors;
 
 /**
- * todo doc
+ * <h2>读取工具构造器.</h2>
+ * <p>
+ * 用于根据构造器的的配置构造读取工具<br/>
+ * 构造器赋予配置的方法和 {@link In} 一样
+ * <br/>
+ * <pre>使用示例
+ *     public static
+ *     void main(String[] args) {
+ *         var build = InOf.inBuild();
+ *         // 赋予配置，自动关闭，异常处理
+ *         build.close().exception(e -> e.printStackTrace(System.out));
+ *
+ *         // 使用以上配置构造并读取
+ *         System.out.println(build.of(new StringReader("asdqw")).read());
+ *         System.out.println(build.of(new StringReader("poipo")).read());
+ *     }
+ * </pre>
+ * <pre>
+ *    public static
+ *     void main(String[] args) {
+ *         var build = InOf.inBuild()
+ *                         // 赋予配置，自动关闭，异常处理
+ *                         .close().exception(e -> e.printStackTrace(System.out))
+ *                         // 启动异步，构造器的类型会变化
+ *                         .async();
+ *
+ *         // 使用以上配置构造并读取
+ *         build.of(new StringReader("asdqw")).read(System.out::println);
+ *         build.of(new StringReader("poipo")).read(System.out::println);
+ *     }
+ * </pre>
  *
  * @author fybug
  * @version 0.0.2
@@ -67,10 +98,11 @@ class InBuild extends Build<InBuild> {
     /*--------------------------------------------------------------------------------------------*/
 
     /**
-     * todo doc
+     * <h2>异步读取工具构造器.</h2>
      *
      * @author fybug
      * @version 0.0.2
+     * @see AsyncIn
      * @since InBuild 0.0.1
      */
     public final
@@ -88,7 +120,7 @@ class InBuild extends Build<InBuild> {
          */
         @NotNull
         public
-        In<InputStream, byte[]>.AsyncIn of(@NotNull InputStream inputStream)
+        AsyncIn of(@NotNull InputStream inputStream)
         { return InBuild.this.of(inputStream).async(pool); }
 
         /**
@@ -98,7 +130,7 @@ class InBuild extends Build<InBuild> {
          */
         @NotNull
         public
-        In<Reader, CharSequence>.AsyncIn of(@NotNull Reader reader)
+        AsyncIn of(@NotNull Reader reader)
         { return InBuild.this.of(reader).async(pool); }
     }
 }
