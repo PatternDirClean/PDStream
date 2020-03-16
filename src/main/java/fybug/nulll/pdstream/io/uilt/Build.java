@@ -81,7 +81,7 @@ class Build<O extends Build<O>> implements InorOut<O> {
     <T extends IOtool<T, ?>> T pushSet(@NotNull T build) {
         if (autoClose)
             build.close();
-        return (T) build.exception(exception);
+        return build.exception(exception);
     }
 
     /*--------------------------------------------------------------------------------------------*/

@@ -1,9 +1,9 @@
 package fybug.nulll.pdstream.io;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.StringWriter;
 import java.io.Writer;
 
 import fybug.nulll.pdstream.io.uilt.Out;
@@ -74,7 +74,7 @@ class OutOf {
 
         @Override
         protected
-        void write0(byte @NotNull [] data) throws IOException
+        void write0(@NotNull Closeable o, @NotNull byte[] data) throws IOException
         { ((OutputStream) o).write(data); }
     }
 
@@ -118,7 +118,7 @@ class OutOf {
 
         @Override
         protected
-        void write0(@NotNull CharSequence data) throws IOException
+        void write0(@NotNull Closeable o, @NotNull CharSequence data) throws IOException
         { ((Writer) o).write(data.toString()); }
     }
 

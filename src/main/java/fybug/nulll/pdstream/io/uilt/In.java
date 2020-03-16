@@ -56,29 +56,34 @@ class In<T> extends IOtool<In<T>, T> {
     @Nullable
     public final
     T read() {
-        try {
-            // 读取
-            return read0();
-        } catch ( IOException e ) {
+        var ref = new Object() {
+            T base = null;
+        };
 
-            // 处理异常
-            exception.accept(e);
-            return null;
+        o.ifPresent(o -> {
+            try {
+                // 读取
+                ref.base = read0(o);
+            } catch ( IOException e ) {
+                // 处理异常
+                exception.accept(e);
+            } finally {
+                /* 检查关闭 */
+                if (needClose)
+                    try {
+                        o.close();
+                    } catch ( IOException ignored ) {
+                    }
+            }
+        });
 
-        } finally {
-            /* 检查关闭 */
-            if (needClose)
-                try {
-                    o.close();
-                } catch ( IOException ignored ) {
-                }
-        }
+        return ref.base;
     }
 
     /** 读取实现 */
     @NotNull
     protected abstract
-    T read0() throws IOException;
+    T read0(@NotNull Closeable o) throws IOException;
 
     /*--------------------------------------------------------------------------------------------*/
 
@@ -122,10 +127,7 @@ class In<T> extends IOtool<In<T>, T> {
             };
 
             synchronized ( this ){
-                if (pool != null)
-                    pool.submit(r);
-                else
-                    new Thread(r).start();
+                pool.ifPresentOrElse(pool -> pool.submit(r), () -> new Thread(r).start());
             }
         }
 
@@ -139,13 +141,14 @@ class In<T> extends IOtool<In<T>, T> {
         @Nullable
         public
         Future<@Nullable T> read() {
+            final Future<T>[] future = new Future[]{null};
+
             synchronized ( this ){
-                if (pool != null)
-                    return pool.submit(In.this::read);
-                else
-                    new Thread(In.this::read).start();
+                pool.ifPresentOrElse(pool -> future[0] = pool.submit(In.this::read),
+                                     // 不使用线程池
+                                     () -> new Thread(In.this::read).start());
             }
-            return null;
+            return future[0];
         }
     }
 }

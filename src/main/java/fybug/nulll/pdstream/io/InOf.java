@@ -1,6 +1,7 @@
 package fybug.nulll.pdstream.io;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
@@ -71,7 +72,7 @@ class InOf {
 
         @NotNull
         protected
-        byte[] read0() throws IOException
+        byte[] read0(@NotNull Closeable o) throws IOException
         { return ((InputStream) o).readNBytes(MAX_SIZE); }
     }
 
@@ -121,7 +122,7 @@ class InOf {
 
         @NotNull
         protected
-        CharSequence read0() throws IOException {
+        CharSequence read0(@NotNull Closeable o) throws IOException {
             var canRead = MAX_SIZE;
             // 数据缓存
             var builder = new StringBuilder();

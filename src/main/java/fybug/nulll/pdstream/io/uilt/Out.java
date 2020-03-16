@@ -40,8 +40,7 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
      * @param needFlush 是否自动刷入数据
      */
     public
-    <O extends Closeable & Flushable> Out(@NotNull O o, @NotNull Class<T> Tcla, boolean needFlush)
-    {
+    <O extends Closeable & Flushable> Out(@NotNull O o, @NotNull Class<T> Tcla, boolean needFlush) {
         super(o, Tcla);
         this.needFlush = needFlush;
     }
@@ -67,23 +66,28 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
      */
     public final
     boolean write(@NotNull T data) {
-        try {
-            // 输出
-            write0(data);
-            return true;
-        } catch ( IOException e ) {
-            // 处理异常
-            exception.accept(e);
-            return false;
-        } finally {
-            if (needFlush)
-                flush();
-        }
+        final boolean[] succ = {false};
+
+        o.ifPresent(o -> {
+            try {
+                // 输出
+                write0(o, data);
+                succ[0] = true;
+            } catch ( IOException e ) {
+                // 处理异常
+                exception.accept(e);
+            } finally {
+                if (needFlush)
+                    flush();
+            }
+        });
+
+        return succ[0];
     }
 
     /** 输出实现 */
     protected abstract
-    void write0(@NotNull T data) throws IOException;
+    void write0(@NotNull Closeable o, @NotNull T data) throws IOException;
 
     //------------------
 
@@ -95,31 +99,35 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
     @NotNull
     public final
     Out<T> append(@NotNull T data) {
-        try {
-            // 输出
-            write0(data);
-        } catch ( IOException e ) {
-            // 处理异常
-            exception.accept(e);
-        }
+        o.ifPresent(o -> {
+            try {
+                // 输出
+                write0(o, data);
+            } catch ( IOException e ) {
+                // 处理异常
+                exception.accept(e);
+            }
+        });
         return this;
     }
 
     @Override
     public
     void flush() {
-        try {
-            ((Flushable) o).flush();
-        } catch ( IOException e ) {
-            exception.accept(e);
-        } finally {
-            /* 检查关闭 */
-            if (needClose)
-                try {
-                    o.close();
-                } catch ( IOException ignored ) {
-                }
-        }
+        o.ifPresent(o -> {
+            try {
+                ((Flushable) o).flush();
+            } catch ( IOException e ) {
+                exception.accept(e);
+            } finally {
+                /* 检查关闭 */
+                if (needClose)
+                    try {
+                        o.close();
+                    } catch ( IOException ignored ) {
+                    }
+            }
+        });
     }
 
     /*--------------------------------------------------------------------------------------------*/
@@ -171,10 +179,9 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
         public
         void write(@NotNull Consumer<Boolean> callback) {
             synchronized ( this ){
-                if (pool != null)
-                    pool.submit(() -> callback.accept(w()));
-                else
-                    new Thread(() -> callback.accept(w())).start();
+                pool.ifPresentOrElse(pool -> pool.submit(() -> callback.accept(w())),
+                                     // 不使用线程池
+                                     () -> new Thread(() -> callback.accept(w())).start());
             }
         }
 
@@ -187,30 +194,39 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
         @Nullable
         public
         Future<Boolean> write() {
+            final Future<Boolean>[] futures = new Future[]{null};
+
             synchronized ( this ){
-                if (pool != null)
-                    return pool.submit(this::w);
-                else
-                    new Thread(this::w).start();
+                pool.ifPresentOrElse(pool -> futures[0] = pool.submit(this::w),
+                                     // 不使用线程池
+                                     () -> new Thread(this::w).start());
+
             }
-            return null;
+            return futures[0];
         }
 
         // 整合输出
         private
         Boolean w() {
-            try {
-                /* 取出数据并写入 */
-                for ( var data = datalist.poll(); data != null; data = datalist.poll() )
-                    Out.this.write0(data);
-                return true;
-            } catch ( IOException e ) {
-                // 异常处理
-                Out.this.exception.accept(e);
-                return false;
-            } finally {
-                flush();
-            }
+            var ref = new Object() {
+                boolean succ = false;
+            };
+
+            o.ifPresent(o -> {
+                try {
+                    /* 取出数据并写入 */
+                    for ( var data = datalist.poll(); data != null; data = datalist.poll() )
+                        Out.this.write0(o, data);
+                    ref.succ = true;
+                } catch ( IOException e ) {
+                    // 异常处理
+                    Out.this.exception.accept(e);
+                } finally {
+                    flush();
+                }
+            });
+
+            return ref.succ;
         }
 
         //----------------------------------------------------------------------------------------------
@@ -224,10 +240,9 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
         public
         void write(@NotNull T data, @NotNull Consumer<Boolean> callback) {
             synchronized ( this ){
-                if (pool != null)
-                    pool.submit(() -> callback.accept(Out.this.write(data)));
-                else
-                    new Thread(() -> callback.accept(Out.this.write(data))).start();
+                pool.ifPresentOrElse(pool -> pool.submit(() -> callback.accept(Out.this.write(data))),
+                                     // 不使用线程池
+                                     () -> new Thread(() -> callback.accept(Out.this.write(data))).start());
             }
         }
 
@@ -243,13 +258,14 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
         @Nullable
         public
         Future<Boolean> write(@NotNull T data) {
+            final Future<Boolean>[] flushable = new Future[]{null};
+
             synchronized ( this ){
-                if (pool != null)
-                    return pool.submit(() -> Out.this.write(data));
-                else
-                    new Thread(() -> Out.this.write(data)).start();
+                pool.ifPresentOrElse(pool -> flushable[0] = pool.submit(() -> Out.this.write(data)),
+                                     // 不使用线程池
+                                     () -> new Thread(() -> Out.this.write(data)).start());
             }
-            return null;
+            return flushable[0];
         }
 
         public

@@ -4,13 +4,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
-
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.Accessors;
 
 /**
  * <h2>读写操作器.</h2>
@@ -18,16 +14,14 @@ import lombok.experimental.Accessors;
  * 提供基础操作
  *
  * @author fybug
- * @version 0.0.1
+ * @version 0.0.2
  * @since uilt 0.0.3
  */
 @SuppressWarnings( "unchecked" )
-@RequiredArgsConstructor
-@AllArgsConstructor( access = AccessLevel.PACKAGE )
-public abstract
+abstract
 class IOtool<U extends IOtool<U, T>, T> implements InorOut<IOtool<U, T>> {
     /** 操作对象 */
-    protected final Closeable o;
+    protected final Optional<Closeable> o;
     // 数据类型
     private final Class<T> Tcla;
 
@@ -35,6 +29,23 @@ class IOtool<U extends IOtool<U, T>, T> implements InorOut<IOtool<U, T>> {
     protected boolean needClose = false;
     /** 异常处理接口 */
     protected Consumer<IOException> exception = e -> {throw new RuntimeException();};
+
+    //----------------------------------------------------------------------------------------------
+
+    protected
+    IOtool(@Nullable Closeable o, @NotNull Class<T> tcla) {
+        this.o = Optional.ofNullable(o);
+        Tcla = tcla;
+    }
+
+    protected
+    IOtool(@Nullable Closeable o, @NotNull Class<T> tcla, boolean c,
+           @NotNull Consumer<IOException> e)
+    {
+        this(o, tcla);
+        needClose = c;
+        exception = e;
+    }
 
     //----------------------------------------------------------------------------------------------
 
@@ -74,15 +85,16 @@ class IOtool<U extends IOtool<U, T>, T> implements InorOut<IOtool<U, T>> {
      * <h2>异步操作器.</h2>
      *
      * @author fybug
-     * @version 0.0.1
+     * @version 0.0.2
      * @since IOtool 0.0.1
      */
-    @RequiredArgsConstructor
-    @Accessors( fluent = true, chain = true )
     public abstract
     class AsyncTool<K extends AsyncTool<K>> implements InorOut<K> {
         /** 执行用线程池 */
-        @Nullable protected final ExecutorService pool;
+        protected final Optional<ExecutorService> pool;
+
+        protected
+        AsyncTool(@Nullable ExecutorService po) {pool = Optional.ofNullable(po);}
 
         //------------------------------------------------------------------------------------------
 
