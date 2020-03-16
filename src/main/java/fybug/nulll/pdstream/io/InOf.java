@@ -56,11 +56,11 @@ class InOf {
      * 字节读取工具实例
      *
      * @author fybug
-     * @version 0.0.1
+     * @version 0.0.2
      * @since InOf 0.0.3
      */
     private final static
-    class byter extends In<InputStream, byte[]> {
+    class byter extends In<byte[]> {
         // 读取的最大字节数
         private final int MAX_SIZE;
 
@@ -71,8 +71,8 @@ class InOf {
 
         @NotNull
         protected
-        byte[] read0(@NotNull InputStream input) throws IOException
-        { return input.readNBytes(MAX_SIZE); }
+        byte[] read0() throws IOException
+        { return ((InputStream) o).readNBytes(MAX_SIZE); }
     }
 
     /**
@@ -85,7 +85,7 @@ class InOf {
      */
     @NotNull
     public
-    In<InputStream, byte[]> read(@NotNull InputStream input, int maxsize)
+    In<byte[]> read(@NotNull InputStream input, int maxsize)
     { return new byter(input, maxsize); }
 
     /**
@@ -97,7 +97,7 @@ class InOf {
      */
     @NotNull
     public
-    In<InputStream, byte[]> readAll(@NotNull InputStream input)
+    In<byte[]> readAll(@NotNull InputStream input)
     { return read(input, Integer.MAX_VALUE); }
 
     //----------------------------------------------------------------------------------------------
@@ -110,7 +110,7 @@ class InOf {
      * @since InOf 0.0.3
      */
     private final static
-    class charr extends In<Reader, CharSequence> {
+    class charr extends In<CharSequence> {
         // 最大读取的字符数量
         private final int MAX_SIZE;
 
@@ -121,7 +121,7 @@ class InOf {
 
         @NotNull
         protected
-        CharSequence read0(@NotNull Reader input) throws IOException {
+        CharSequence read0() throws IOException {
             var canRead = MAX_SIZE;
             // 数据缓存
             var builder = new StringBuilder();
@@ -130,9 +130,9 @@ class InOf {
             // 载入缓冲的数据量
             int readsize;
 
-            while( input.ready() && canRead > 0 ){
+            while( ((Reader) o).ready() && canRead > 0 ){
                 // 读取数据到缓冲区
-                readsize = input.read(buff, 0, Math.min(1024, canRead));
+                readsize = ((Reader) o).read(buff, 0, Math.min(1024, canRead));
 
                 // 莫得了
                 if (readsize < 1)
@@ -166,7 +166,7 @@ class InOf {
      */
     @NotNull
     public
-    In<Reader, CharSequence> read(@NotNull Reader input, int maxsize)
+    In<CharSequence> read(@NotNull Reader input, int maxsize)
     { return new charr(input, maxsize); }
 
     /**
@@ -178,7 +178,7 @@ class InOf {
      */
     @NotNull
     public
-    In<Reader, CharSequence> readAll(@NotNull Reader input)
+    In<CharSequence> readAll(@NotNull Reader input)
     { return read(input, Integer.MAX_VALUE); }
 
     //----------------------------------------------------------------------------------------------
@@ -207,12 +207,12 @@ class InOf {
         return new InBuild() {
             @Override
             protected @NotNull
-            In<InputStream, byte[]> build(@NotNull InputStream inputStream)
+            In<byte[]> build(@NotNull InputStream inputStream)
             { return new byter(inputStream, maxsize); }
 
             @Override
             protected @NotNull
-            In<Reader, CharSequence> build(@NotNull Reader reader)
+            In<CharSequence> build(@NotNull Reader reader)
             { return new charr(reader, maxsize); }
         };
     }

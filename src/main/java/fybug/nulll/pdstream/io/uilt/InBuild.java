@@ -70,13 +70,13 @@ class InBuild extends Build<InBuild> {
      */
     @NotNull
     public
-    In<InputStream, byte[]> of(@NotNull InputStream inputStream)
+    In<byte[]> of(@NotNull InputStream inputStream)
     { return pushSet(build(inputStream)); }
 
     /** 构造读取工具 */
     @NotNull
     protected abstract
-    In<InputStream, byte[]> build(@NotNull InputStream inputStream);
+    In<byte[]> build(@NotNull InputStream inputStream);
 
     //-----------------------------------
 
@@ -88,12 +88,12 @@ class InBuild extends Build<InBuild> {
      */
     @NotNull
     public
-    In<Reader, CharSequence> of(@NotNull Reader reader) { return pushSet(build(reader)); }
+    In<CharSequence> of(@NotNull Reader reader) { return pushSet(build(reader)); }
 
     /** 构造读取工具 */
     @NotNull
     protected abstract
-    In<Reader, CharSequence> build(@NotNull Reader reader);
+    In<CharSequence> build(@NotNull Reader reader);
 
     /*--------------------------------------------------------------------------------------------*/
 

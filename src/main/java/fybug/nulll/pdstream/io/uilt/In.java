@@ -8,49 +8,31 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
-import lombok.experimental.Accessors;
-
 /**
  * <h2>读取工具实现.</h2>
  *
  * @author fybug
- * @version 0.0.2
- * @see AsyncIn
+ * @version 0.0.3
  * @since uilt 0.0.1
  */
-@Accessors( fluent = true, chain = true )
-@RequiredArgsConstructor
-@AllArgsConstructor( access = AccessLevel.PACKAGE )
+@SuppressWarnings( "unchecked" )
 public abstract
-class In<O extends Closeable, T> implements InorOut<In<O, T>> {
-    /** 读取对象 */
-    @NonNull protected O o;
+class In<T> extends IOtool<In<T>, T> {
 
-    // 数据类型
-    private final Class<T> Tcla;
-    // 是否同时关闭
-    boolean needClose = false;
+    /**
+     * 构造一个读取工具
+     *
+     * @param o    读取的流
+     * @param Tcla 数据类型
+     */
+    public
+    In(@NotNull Closeable o, @NotNull Class<T> Tcla) { super(o, Tcla); }
 
-    /** 异常处理接口 */
-    @Setter Consumer<IOException> exception = e -> {throw new RuntimeException();};
-
-    //----------------------------------------------------------------------------------------------
-
-    @NotNull
-    public final
-    In<O, T> close() {
-        needClose = true;
-        return this;
-    }
+    In(Closeable o, Class<T> Tcla, boolean needClose, Consumer<IOException> exception)
+    { super(o, Tcla, needClose, exception); }
 
     //----------------------------------------------------------------------------------------------
 
-    /** 切换为异步操作 */
     @NotNull
     public final
     AsyncIn async() { return async(null); }
@@ -76,7 +58,7 @@ class In<O extends Closeable, T> implements InorOut<In<O, T>> {
     T read() {
         try {
             // 读取
-            return read0(o);
+            return read0();
         } catch ( IOException e ) {
 
             // 处理异常
@@ -96,7 +78,7 @@ class In<O extends Closeable, T> implements InorOut<In<O, T>> {
     /** 读取实现 */
     @NotNull
     protected abstract
-    T read0(@NotNull O o) throws IOException;
+    T read0() throws IOException;
 
     /*--------------------------------------------------------------------------------------------*/
 
@@ -104,31 +86,19 @@ class In<O extends Closeable, T> implements InorOut<In<O, T>> {
      * <h2>异步读取实现.</h2>
      *
      * @author fybug
-     * @version 0.0.1
+     * @version 0.0.2
      * @since In 0.0.2
      */
-    @Accessors( fluent = true, chain = true )
-    @AllArgsConstructor( access = AccessLevel.PACKAGE )
     public final
-    class AsyncIn implements InorOut<AsyncIn> {
-        // 执行用线程池
-        @Nullable private final ExecutorService pool;
+    class AsyncIn extends IOtool<In<T>, T>.AsyncTool<AsyncIn> {
 
-        //----------------------------------------------------------------------------------------------
-
-        @NotNull
+        /**
+         * 构造一个异步读取工具
+         *
+         * @param pool 进行异步操作的线程池
+         */
         public
-        AsyncIn close() {
-            In.this.close();
-            return this;
-        }
-
-        @NotNull
-        public
-        AsyncIn exception(@NotNull Consumer<IOException> e) {
-            In.this.exception(e);
-            return this;
-        }
+        AsyncIn(@Nullable ExecutorService pool) { super(pool); }
 
         //----------------------------------------------------------------------------------------------
 
@@ -151,10 +121,12 @@ class In<O extends Closeable, T> implements InorOut<In<O, T>> {
                 callback.accept(re);
             };
 
-            if (pool != null)
-                pool.submit(r);
-            else
-                new Thread(r).start();
+            synchronized ( this ){
+                if (pool != null)
+                    pool.submit(r);
+                else
+                    new Thread(r).start();
+            }
         }
 
         /**
@@ -167,12 +139,13 @@ class In<O extends Closeable, T> implements InorOut<In<O, T>> {
         @Nullable
         public
         Future<@Nullable T> read() {
-            if (pool != null)
-                return pool.submit(In.this::read);
-            else {
-                new Thread(In.this::read).start();
-                return null;
+            synchronized ( this ){
+                if (pool != null)
+                    return pool.submit(In.this::read);
+                else
+                    new Thread(In.this::read).start();
             }
+            return null;
         }
     }
 }

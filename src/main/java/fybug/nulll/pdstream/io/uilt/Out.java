@@ -10,59 +10,48 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
-import lombok.AllArgsConstructor;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
-import lombok.experimental.Accessors;
-
 /**
  * <h2>输出工具实现.</h2>
  * <p>
  * 可使用 {@link #append(T)} 进行链式写入，无论设置如何使用该操作都需要手动执行 {@link #flush()}
  *
  * @author fybug
- * @version 0.0.2
- * @see AsyncOut
+ * @version 0.0.3
  * @since uilt 0.0.1
  */
-@Accessors( fluent = true, chain = true )
-@RequiredArgsConstructor
+@SuppressWarnings( "unchecked" )
 public abstract
-class Out<O extends Flushable & Closeable, T> implements Flushable, InorOut<Out<O, T>> {
-    /** 输出对象 */
-    protected final O o;
-
+class Out<T> extends IOtool<Out<T>, T> implements Flushable {
     /** 是否及时刷新 */
     final boolean needFlush;
-    // 是否同时关闭
-    boolean needClose = false;
-    // 数据类型
-    private final Class<T> Tcla;
 
-    /** 异常处理接口 */
-    @Setter protected Consumer<IOException> exception = e -> {throw new RuntimeException();};
+    Out(Closeable o, Class<T> Tcla, boolean needClose, Consumer<IOException> exception,
+        boolean needFlush)
+    {
+        super(o, Tcla, needClose, exception);
+        this.needFlush = needFlush;
+    }
 
-    //----------------------------------------------------------------------------------------------
-
-    @NotNull
-    public final
-    Out<O, T> close() {
-        needClose = true;
-        return this;
+    /**
+     * 构造一个输出工具
+     *
+     * @param o         输出对象
+     * @param Tcla      数据类型
+     * @param needFlush 是否自动刷入数据
+     */
+    public
+    <O extends Closeable & Flushable> Out(@NotNull O o, @NotNull Class<T> Tcla, boolean needFlush)
+    {
+        super(o, Tcla);
+        this.needFlush = needFlush;
     }
 
     //----------------------------------------------------------------------------------------------
 
-    /** 切换为异步操作 */
     @NotNull
     public final
     AsyncOut async() { return async(null); }
 
-    /**
-     * 切换为异步操作
-     *
-     * @param pool 运行用线程池
-     */
     @NotNull
     public final
     AsyncOut async(@Nullable ExecutorService pool) { return new AsyncOut(pool); }
@@ -80,7 +69,7 @@ class Out<O extends Flushable & Closeable, T> implements Flushable, InorOut<Out<
     boolean write(@NotNull T data) {
         try {
             // 输出
-            write0(o, data);
+            write0(data);
             return true;
         } catch ( IOException e ) {
             // 处理异常
@@ -94,7 +83,7 @@ class Out<O extends Flushable & Closeable, T> implements Flushable, InorOut<Out<
 
     /** 输出实现 */
     protected abstract
-    void write0(@NotNull O o, @NotNull T data) throws IOException;
+    void write0(@NotNull T data) throws IOException;
 
     //------------------
 
@@ -105,10 +94,10 @@ class Out<O extends Flushable & Closeable, T> implements Flushable, InorOut<Out<
      */
     @NotNull
     public final
-    Out<O, T> append(@NotNull T data) {
+    Out<T> append(@NotNull T data) {
         try {
             // 输出
-            write0(o, data);
+            write0(data);
         } catch ( IOException e ) {
             // 处理异常
             exception.accept(e);
@@ -120,7 +109,7 @@ class Out<O extends Flushable & Closeable, T> implements Flushable, InorOut<Out<
     public
     void flush() {
         try {
-            o.flush();
+            ((Flushable) o).flush();
         } catch ( IOException e ) {
             exception.accept(e);
         } finally {
@@ -139,31 +128,19 @@ class Out<O extends Flushable & Closeable, T> implements Flushable, InorOut<Out<
      * <h2>异步输出实现.</h2>
      *
      * @author fybug
-     * @version 0.0.1
+     * @version 0.0.2
      * @since Out 0.0.2
      */
-    @Accessors( fluent = true, chain = true )
-    @AllArgsConstructor
     public final
-    class AsyncOut implements Flushable, InorOut<AsyncOut> {
-        // 执行用线程池
-        @Nullable private final ExecutorService pool;
+    class AsyncOut extends IOtool<Out<T>, T>.AsyncTool<AsyncOut> implements Flushable {
 
-        //----------------------------------------------------------------------------------------------
-
-        @NotNull
+        /**
+         * 构造一个异步输出工具
+         *
+         * @param pool 操作用线程池
+         */
         public
-        Out.AsyncOut close() {
-            Out.this.close();
-            return this;
-        }
-
-        @NotNull
-        public
-        Out.AsyncOut exception(@NotNull Consumer<IOException> e) {
-            Out.this.exception(e);
-            return this;
-        }
+        AsyncOut(@Nullable ExecutorService pool) { super(pool); }
 
         //----------------------------------------------------------------------------------------------
 
@@ -179,7 +156,7 @@ class Out<O extends Flushable & Closeable, T> implements Flushable, InorOut<Out<
          */
         @NotNull
         public
-        Out.AsyncOut append(@NotNull T data) {
+        AsyncOut append(@NotNull T data) {
             datalist.add(data);
             return this;
         }
@@ -193,10 +170,12 @@ class Out<O extends Flushable & Closeable, T> implements Flushable, InorOut<Out<
          */
         public
         void write(@NotNull Consumer<Boolean> callback) {
-            if (pool != null)
-                pool.submit(() -> callback.accept(w()));
-            else
-                new Thread(() -> callback.accept(w())).start();
+            synchronized ( this ){
+                if (pool != null)
+                    pool.submit(() -> callback.accept(w()));
+                else
+                    new Thread(() -> callback.accept(w())).start();
+            }
         }
 
         /**
@@ -208,12 +187,13 @@ class Out<O extends Flushable & Closeable, T> implements Flushable, InorOut<Out<
         @Nullable
         public
         Future<Boolean> write() {
-            if (pool != null)
-                return pool.submit(this::w);
-            else {
-                new Thread(this::w).start();
-                return null;
+            synchronized ( this ){
+                if (pool != null)
+                    return pool.submit(this::w);
+                else
+                    new Thread(this::w).start();
             }
+            return null;
         }
 
         // 整合输出
@@ -222,7 +202,7 @@ class Out<O extends Flushable & Closeable, T> implements Flushable, InorOut<Out<
             try {
                 /* 取出数据并写入 */
                 for ( var data = datalist.poll(); data != null; data = datalist.poll() )
-                    Out.this.write0(Out.this.o, data);
+                    Out.this.write0(data);
                 return true;
             } catch ( IOException e ) {
                 // 异常处理
@@ -243,10 +223,12 @@ class Out<O extends Flushable & Closeable, T> implements Flushable, InorOut<Out<
          */
         public
         void write(@NotNull T data, @NotNull Consumer<Boolean> callback) {
-            if (pool != null)
-                pool.submit(() -> callback.accept(Out.this.write(data)));
-            else
-                new Thread(() -> callback.accept(Out.this.write(data))).start();
+            synchronized ( this ){
+                if (pool != null)
+                    pool.submit(() -> callback.accept(Out.this.write(data)));
+                else
+                    new Thread(() -> callback.accept(Out.this.write(data))).start();
+            }
         }
 
         /**
@@ -261,12 +243,13 @@ class Out<O extends Flushable & Closeable, T> implements Flushable, InorOut<Out<
         @Nullable
         public
         Future<Boolean> write(@NotNull T data) {
-            if (pool != null)
-                return pool.submit(() -> Out.this.write(data));
-            else {
-                new Thread(() -> Out.this.write(data)).start();
-                return null;
+            synchronized ( this ){
+                if (pool != null)
+                    return pool.submit(() -> Out.this.write(data));
+                else
+                    new Thread(() -> Out.this.write(data)).start();
             }
+            return null;
         }
 
         public

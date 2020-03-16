@@ -17,7 +17,7 @@ import lombok.experimental.Accessors;
  * 使用构造器中的配置构造读写工具
  *
  * @author fybug
- * @version 0.0.1
+ * @version 0.0.2
  * @since uilt 0.0.2
  */
 @SuppressWarnings( "unchecked" )
@@ -78,10 +78,10 @@ class Build<O extends Build<O>> implements InorOut<O> {
     /** 放入配置 */
     @NotNull
     protected
-    <T extends InorOut<T>> T pushSet(@NotNull T build) {
+    <T extends IOtool<T, ?>> T pushSet(@NotNull T build) {
         if (autoClose)
             build.close();
-        return build.exception(exception);
+        return (T) build.exception(exception);
     }
 
     /*--------------------------------------------------------------------------------------------*/

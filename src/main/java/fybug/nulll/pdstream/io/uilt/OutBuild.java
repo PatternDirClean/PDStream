@@ -3,7 +3,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.OutputStream;
-import java.io.StringWriter;
 import java.io.Writer;
 import java.util.concurrent.ExecutorService;
 
@@ -46,7 +45,7 @@ import lombok.experimental.Accessors;
  * </pre>
  *
  * @author fybug
- * @version 0.0.1
+ * @version 0.0.2
  * @since uilt 0.0.2
  */
 @SuppressWarnings( "unchecked" )
@@ -72,13 +71,13 @@ class OutBuild extends Build<OutBuild> {
      */
     @NotNull
     public
-    Out<OutputStream, byte[]> of(@NotNull OutputStream outputStream)
+    Out<byte[]> of(@NotNull OutputStream outputStream)
     { return pushSet(build(outputStream)); }
 
     /** 构造输出工具 */
     @NotNull
     protected abstract
-    Out<OutputStream, byte[]> build(@NotNull OutputStream outputStream);
+    Out<byte[]> build(@NotNull OutputStream outputStream);
 
     //-----------------------------------
 
@@ -90,12 +89,12 @@ class OutBuild extends Build<OutBuild> {
      */
     @NotNull
     public
-    Out<Writer, CharSequence> of(@NotNull Writer writer) { return pushSet(build(writer)); }
+    Out<CharSequence> of(@NotNull Writer writer) { return pushSet(build(writer)); }
 
     /** 构造输出工具 */
     @NotNull
     protected abstract
-    Out<Writer, CharSequence> build(@NotNull Writer writer);
+    Out<CharSequence> build(@NotNull Writer writer);
 
     /*--------------------------------------------------------------------------------------------*/
 

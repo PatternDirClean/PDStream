@@ -21,7 +21,7 @@ interface InorOut<U extends InorOut<U>> {
     @NotNull
     U close();
 
-    /** 异常处理接口 */
+    /** 注册异常处理接口 */
     @NotNull
-    U exception(@NotNull Consumer<IOException> e);
+    U exception(@NotNull Consumer<IOException> run);
 }

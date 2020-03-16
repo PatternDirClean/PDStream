@@ -3,6 +3,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.StringWriter;
 import java.io.Writer;
 
 import fybug.nulll.pdstream.io.uilt.Out;
@@ -57,6 +58,7 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public
 class OutOf {
+
     /**
      * 字节输出工具实现
      *
@@ -65,15 +67,15 @@ class OutOf {
      * @since OutOf 0.0.2
      */
     private final static
-    class bytew extends Out<OutputStream, byte[]> {
+    class bytew extends Out<byte[]> {
         private
         bytew(OutputStream outputStream, boolean needFlush)
-        { super(outputStream, needFlush, byte[].class); }
+        { super(outputStream, byte[].class, needFlush); }
 
         @Override
         protected
-        void write0(@NotNull OutputStream outputStream, byte @NotNull [] data) throws IOException
-        { outputStream.write(data); }
+        void write0(byte @NotNull [] data) throws IOException
+        { ((OutputStream) o).write(data); }
     }
 
     /**
@@ -85,7 +87,7 @@ class OutOf {
      */
     @NotNull
     public
-    Out<OutputStream, byte[]> write(@NotNull OutputStream outputStream)
+    Out<byte[]> write(@NotNull OutputStream outputStream)
     { return new bytew(outputStream, false); }
 
     /**
@@ -97,7 +99,7 @@ class OutOf {
      */
     @NotNull
     public
-    Out<OutputStream, byte[]> writeFlush(@NotNull OutputStream outputStream)
+    Out<byte[]> writeFlush(@NotNull OutputStream outputStream)
     { return new bytew(outputStream, true); }
 
     //----------------------------------------------------------------------------------------------
@@ -110,14 +112,14 @@ class OutOf {
      * @since OutOf 0.0.2
      */
     private final static
-    class charw extends Out<Writer, CharSequence> {
+    class charw extends Out<CharSequence> {
         private
-        charw(Writer writer, boolean needFlush) { super(writer, needFlush, CharSequence.class); }
+        charw(Writer writer, boolean needFlush) { super(writer, CharSequence.class, needFlush); }
 
         @Override
         protected
-        void write0(@NotNull Writer writer, @NotNull CharSequence data) throws IOException
-        { writer.write(data.toString()); }
+        void write0(@NotNull CharSequence data) throws IOException
+        { ((Writer) o).write(data.toString()); }
     }
 
     /**
@@ -129,7 +131,7 @@ class OutOf {
      */
     @NotNull
     public
-    Out<Writer, CharSequence> write(@NotNull Writer writer)
+    Out<CharSequence> write(@NotNull Writer writer)
     { return new charw(writer, false); }
 
     /**
@@ -141,7 +143,7 @@ class OutOf {
      */
     @NotNull
     public
-    Out<Writer, CharSequence> writeFlush(@NotNull Writer writer)
+    Out<CharSequence> writeFlush(@NotNull Writer writer)
     { return new charw(writer, false); }
 
     //----------------------------------------------------------------------------------------------
@@ -159,12 +161,12 @@ class OutOf {
         return new OutBuild() {
             @NotNull
             protected
-            Out<OutputStream, byte[]> build(@NotNull OutputStream outputStream)
+            Out<byte[]> build(@NotNull OutputStream outputStream)
             { return new bytew(outputStream, autoflush); }
 
             @NotNull
             protected
-            Out<Writer, CharSequence> build(@NotNull Writer writer)
+            Out<CharSequence> build(@NotNull Writer writer)
             { return new charw(writer, autoflush); }
         };
     }
