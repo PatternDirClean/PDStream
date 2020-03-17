@@ -57,13 +57,7 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
 
     //----------------------------------------------------------------------------------------------
 
-    /**
-     * 进行写入
-     *
-     * @param data 输出的数据
-     *
-     * @return 是否成功
-     */
+    /** @see #write(Object, Consumer) */
     public final
     boolean write(@NotNull T data) {return write(data, t -> {});}
 
@@ -79,17 +73,17 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
      */
     public final
     boolean write(@NotNull T data, @NotNull Consumer<IOException> erun) {
-        final boolean[] succ = {false};
+        final boolean[] succ = {true};
 
         o.ifPresent(o -> {
             try {
                 // 输出
                 write0(o, data);
-                succ[0] = true;
             } catch ( IOException e ) {
                 // 处理异常
                 exception.accept(e);
                 erun.accept(e);
+                succ[0] = false;
             } finally {
                 if (needFlush)
                     flush();
@@ -172,7 +166,7 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
         /**
          * 追加写入
          * <p>
-         * 写入的数据缓存到 {@link #datalist} 中，需要执行 {@link #write()} 或 {@link #write(Consumer)} 写入
+         * 写入的数据缓存到 {@link #datalist} 中，需要执行 {@link #write()} 或 {@link #write(Runnable)} 写入
          *
          * @param data 写入的数据
          */
@@ -185,15 +179,9 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
 
         //-----------------------------------------------
 
-        /**
-         * 写入缓存中的数据
-         * <p>
-         * 写入完成后会执行 {@link #flush()} 无论配置如何
-         *
-         * @param callback 写入状态回调
-         */
+        /** @see #write(Runnable, Consumer) */
         public
-        void write(@NotNull Consumer<Boolean> callback) {write(callback, y -> {});}
+        void write(@NotNull Runnable callback) {write(callback, y -> {});}
 
         /**
          * 写入缓存中的数据
@@ -206,28 +194,25 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
          * @since Out 0.0.4
          */
         public
-        void write(@NotNull Consumer<Boolean> callback, @NotNull Consumer<IOException> erun) {
+        void write(@NotNull Runnable callback, @NotNull Consumer<IOException> erun) {
             synchronized ( this ){
-                pool.ifPresentOrElse(pool -> {
-                    pool.submit(() -> {
-                        try {
-                            var succ = w();
-                            pool.submit(() -> callback.accept(succ));
-                        } catch ( IOException e ) {
-                            exception.accept(e);
-                            erun.accept(e);
-                        }
-                    });
-                }, () -> {
-                    new Thread(() -> {
-                        try {
-                            callback.accept(w());
-                        } catch ( IOException e ) {
-                            exception.accept(e);
-                            erun.accept(e);
-                        }
-                    }).start();
-                });
+                pool.ifPresentOrElse(pool -> pool.submit(() -> {
+                    try {
+                        w();
+                        pool.submit(callback);
+                    } catch ( IOException e ) {
+                        exception.accept(e);
+                        erun.accept(e);
+                    }
+                }), () -> new Thread(() -> {
+                    try {
+                        w();
+                        callback.run();
+                    } catch ( IOException e ) {
+                        exception.accept(e);
+                        erun.accept(e);
+                    }
+                }).start());
             }
         }
 
@@ -259,7 +244,7 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
 
         // 整合输出
         private
-        Boolean w() throws IOException {
+        boolean w() throws IOException {
             // 检查
             if (o.isEmpty())
                 return false;
@@ -283,14 +268,9 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
 
         //----------------------------------------------------------------------------------------------
 
-        /**
-         * 进行输出
-         *
-         * @param data     输出数据
-         * @param callback 输出状态回调
-         */
+        /** @see #write(Object, Runnable, Consumer) */
         public
-        void write(@NotNull T data, @NotNull Consumer<Boolean> callback)
+        void write(@NotNull T data, @NotNull Runnable callback)
         {write(data, callback, y -> {});}
 
         /**
@@ -303,17 +283,18 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
          * @since Out 0.0.4
          */
         public
-        void write(@NotNull T data, @NotNull Consumer<Boolean> callback,
-                   @NotNull Consumer<IOException> erun)
+        void write(@NotNull T data, @NotNull Runnable callback, @NotNull Consumer<IOException> erun)
         {
             synchronized ( this ){
                 pool.ifPresentOrElse(pool -> pool.submit(() -> {
-                                         var succ = Out.this.write(data, erun);
-                                         pool.submit(() -> callback.accept(succ));
+                                         if (Out.this.write(data, erun))
+                                             pool.submit(callback);
                                      }),
                                      // 不使用线程池
-                                     () -> new Thread(() -> callback.accept(Out.this.write(data, erun)))
-                                             .start());
+                                     () -> new Thread(() -> {
+                                         Out.this.write(data, erun);
+                                         callback.run();
+                                     }).start());
             }
         }
 

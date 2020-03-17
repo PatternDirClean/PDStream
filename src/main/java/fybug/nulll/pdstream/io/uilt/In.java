@@ -4,6 +4,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
@@ -48,11 +49,7 @@ class In<T> extends IOtool<In<T>, T> {
 
     //----------------------------------------------------------------------------------------------
 
-    /**
-     * 进行读取
-     *
-     * @return 读取的数据
-     */
+    /** @see #read(Consumer) */
     @Nullable
     public final
     T read() {return read(t -> {});}
@@ -121,11 +118,7 @@ class In<T> extends IOtool<In<T>, T> {
 
         //----------------------------------------------------------------------------------------------
 
-        /**
-         * 进行读取
-         *
-         * @param callback 读取到数据后的回调
-         */
+        /** @see #read(Consumer, Consumer) */
         public
         void read(@NotNull Consumer<@NotNull T> callback) {read(callback, t -> {});}
 
@@ -143,21 +136,14 @@ class In<T> extends IOtool<In<T>, T> {
                 pool.ifPresentOrElse(pool -> {
                     // 启用读取
                     pool.submit(() -> {
-                        T re = In.this.read(erun);
-                        // 检查
-                        if (re == null)
-                            return;
                         // 调取回调
-                        pool.submit(() -> callback.accept(re));
+                        Optional.ofNullable(In.this.read(erun))
+                                .ifPresent(re -> pool.submit(() -> callback.accept(re)));
                     });
                 }, () -> {
                     // 启用线程
-                    new Thread(() -> {
-                        T re = In.this.read(erun);
-                        // 检查
-                        if (re != null)
-                            callback.accept(re);
-                    }).start();
+                    new Thread(() -> Optional.ofNullable(In.this.read(erun))
+                                             .ifPresent(callback)).start();
                 });
             }
         }
@@ -174,14 +160,12 @@ class In<T> extends IOtool<In<T>, T> {
         Future<@Nullable T> read() {
             final Future<T>[] future = new Future[]{null};
 
-            synchronized ( this ){
-                o.ifPresent(o -> {
+            o.ifPresent(o -> {
+                synchronized ( this ){
                     // 检查线程池
-                    pool.ifPresentOrElse(pool -> future[0] = pool.submit(() -> read0(o)),
-                                         // 不使用线程池
-                                         () -> new Thread(In.this::read).start());
-                });
-            }
+                    pool.ifPresent(pool -> future[0] = pool.submit(() -> read0(o)));
+                }
+            });
             return future[0];
         }
     }
