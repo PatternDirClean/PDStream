@@ -12,7 +12,7 @@ import java.util.function.Consumer;
  * <h2>读取工具实现.</h2>
  *
  * @author fybug
- * @version 0.0.3
+ * @version 0.0.4
  * @since uilt 0.0.1
  */
 @SuppressWarnings( "unchecked" )
@@ -55,7 +55,20 @@ class In<T> extends IOtool<In<T>, T> {
      */
     @Nullable
     public final
-    T read() {
+    T read() {return read(t -> {});}
+
+    /**
+     * 进行读取
+     *
+     * @param erun 异常处理
+     *
+     * @return 读取的数据
+     *
+     * @since In 0.0.4
+     */
+    @Nullable
+    public final
+    T read(@NotNull Consumer<IOException> erun) {
         var ref = new Object() {
             T base = null;
         };
@@ -67,6 +80,7 @@ class In<T> extends IOtool<In<T>, T> {
             } catch ( IOException e ) {
                 // 处理异常
                 exception.accept(e);
+                erun.accept(e);
             } finally {
                 /* 检查关闭 */
                 if (needClose)
@@ -113,21 +127,38 @@ class In<T> extends IOtool<In<T>, T> {
          * @param callback 读取到数据后的回调
          */
         public
-        void read(@NotNull Consumer<@NotNull T> callback) {
-            Runnable r = () -> {
-                // 读取的数据
-                T re;
+        void read(@NotNull Consumer<@NotNull T> callback) {read(callback, t -> {});}
 
-                /* 校验 */
-                re = In.this.read();
-                if (re == null)
-                    return;
-
-                callback.accept(re);
-            };
-
+        /**
+         * 进行读取
+         *
+         * @param callback 读取到数据后的回调
+         * @param erun     异常处理
+         *
+         * @since In 0.0.4
+         */
+        public
+        void read(@NotNull Consumer<@NotNull T> callback, @NotNull Consumer<IOException> erun) {
             synchronized ( this ){
-                pool.ifPresentOrElse(pool -> pool.submit(r), () -> new Thread(r).start());
+                pool.ifPresentOrElse(pool -> {
+                    // 启用读取
+                    pool.submit(() -> {
+                        T re = In.this.read(erun);
+                        // 检查
+                        if (re == null)
+                            return;
+                        // 调取回调
+                        pool.submit(() -> callback.accept(re));
+                    });
+                }, () -> {
+                    // 启用线程
+                    new Thread(() -> {
+                        T re = In.this.read(erun);
+                        // 检查
+                        if (re != null)
+                            callback.accept(re);
+                    }).start();
+                });
             }
         }
 
@@ -144,9 +175,12 @@ class In<T> extends IOtool<In<T>, T> {
             final Future<T>[] future = new Future[]{null};
 
             synchronized ( this ){
-                pool.ifPresentOrElse(pool -> future[0] = pool.submit(In.this::read),
-                                     // 不使用线程池
-                                     () -> new Thread(In.this::read).start());
+                o.ifPresent(o -> {
+                    // 检查线程池
+                    pool.ifPresentOrElse(pool -> future[0] = pool.submit(() -> read0(o)),
+                                         // 不使用线程池
+                                         () -> new Thread(In.this::read).start());
+                });
             }
             return future[0];
         }
