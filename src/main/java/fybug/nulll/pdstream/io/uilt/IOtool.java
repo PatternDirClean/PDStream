@@ -18,7 +18,7 @@ import java.util.function.Consumer;
  * @since uilt 0.0.3
  */
 @SuppressWarnings( "unchecked" )
-public abstract
+abstract
 class IOtool<U extends IOtool<U, T>, T> implements InorOut<IOtool<U, T>> {
     /** 操作对象 */
     protected final Optional<Closeable> o;

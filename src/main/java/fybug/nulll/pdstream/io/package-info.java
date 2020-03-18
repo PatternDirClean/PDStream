@@ -10,7 +10,7 @@
  * 使用线程池处理时回调会异步于操作，但异常处理仍旧同步
  *
  * @author fybug
- * @version 0.0.1
+ * @version 0.0.2
  * @since PDStream restart-0.1.1
  */
 package fybug.nulll.pdstream.io;
