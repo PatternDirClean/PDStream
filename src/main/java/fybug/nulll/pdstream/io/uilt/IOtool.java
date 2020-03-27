@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * <h2>读写操作器.</h2>
@@ -14,14 +15,14 @@ import java.util.function.Consumer;
  * 提供基础操作
  *
  * @author fybug
- * @version 0.0.2
+ * @version 0.0.3
  * @since uilt 0.0.3
  */
 @SuppressWarnings( "unchecked" )
 abstract
 class IOtool<U extends IOtool<U, T>, T> implements InorOut<IOtool<U, T>> {
-    /** 操作对象 */
-    protected final Optional<Closeable> o;
+    /** 操作对象生成接口 */
+    protected final Supplier<Closeable> o;
     // 数据类型
     private final Class<T> Tcla;
 
@@ -33,13 +34,13 @@ class IOtool<U extends IOtool<U, T>, T> implements InorOut<IOtool<U, T>> {
     //----------------------------------------------------------------------------------------------
 
     protected
-    IOtool(@Nullable Closeable o, @NotNull Class<T> tcla) {
-        this.o = Optional.ofNullable(o);
+    IOtool(@NotNull Supplier<Closeable> o, @NotNull Class<T> tcla) {
+        this.o = o;
         Tcla = tcla;
     }
 
     protected
-    IOtool(@Nullable Closeable o, @NotNull Class<T> tcla, boolean c,
+    IOtool(@NotNull Supplier<Closeable> o, @NotNull Class<T> tcla, boolean c,
            @NotNull Consumer<IOException> e)
     {
         this(o, tcla);

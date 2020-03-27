@@ -70,7 +70,7 @@ class OutOf {
     class bytew extends Out<byte[]> {
         private
         bytew(OutputStream outputStream, boolean needFlush)
-        { super(outputStream, byte[].class, needFlush); }
+        { super(() -> outputStream, byte[].class, needFlush); }
 
         @Override
         protected
@@ -114,7 +114,8 @@ class OutOf {
     private final static
     class charw extends Out<CharSequence> {
         private
-        charw(Writer writer, boolean needFlush) { super(writer, CharSequence.class, needFlush); }
+        charw(Writer writer, boolean needFlush)
+        { super(() -> writer, CharSequence.class, needFlush); }
 
         @Override
         protected

@@ -6,9 +6,11 @@ import java.io.Closeable;
 import java.io.Flushable;
 import java.io.IOException;
 import java.util.LinkedList;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * <h2>输出工具实现.</h2>
@@ -25,7 +27,7 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
     /** 是否及时刷新 */
     final boolean needFlush;
 
-    Out(Closeable o, Class<T> Tcla, boolean needClose, Consumer<IOException> exception,
+    Out(Supplier<Closeable> o, Class<T> Tcla, boolean needClose, Consumer<IOException> exception,
         boolean needFlush)
     {
         super(o, Tcla, needClose, exception);
@@ -35,12 +37,12 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
     /**
      * 构造一个输出工具
      *
-     * @param o         输出对象
+     * @param o         获取流的接口
      * @param Tcla      数据类型
      * @param needFlush 是否自动刷入数据
      */
     public
-    <O extends Closeable & Flushable> Out(@NotNull O o, @NotNull Class<T> Tcla, boolean needFlush) {
+    Out(@NotNull Supplier<Closeable> o, @NotNull Class<T> Tcla, boolean needFlush) {
         super(o, Tcla);
         this.needFlush = needFlush;
     }
@@ -75,7 +77,7 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
     boolean write(@NotNull T data, @NotNull Consumer<IOException> erun) {
         final boolean[] succ = {true};
 
-        o.ifPresent(o -> {
+        Optional.ofNullable(o.get()).ifPresent(o -> {
             try {
                 // 输出
                 write0(o, data);
@@ -107,7 +109,7 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
     @NotNull
     public final
     Out<T> append(@NotNull T data) {
-        o.ifPresent(o -> {
+        Optional.ofNullable(o.get()).ifPresent(o -> {
             try {
                 // 输出
                 write0(o, data);
@@ -122,7 +124,7 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
     @Override
     public
     void flush() {
-        o.ifPresent(o -> {
+        Optional.ofNullable(o.get()).ifPresent(o -> {
             try {
                 ((Flushable) o).flush();
             } catch ( IOException e ) {
@@ -245,10 +247,11 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
         // 整合输出
         private
         boolean w() throws IOException {
+            var os = Optional.ofNullable(Out.this.o.get());
             // 检查
-            if (o.isEmpty())
+            if (os.isEmpty())
                 return false;
-            var o = Out.this.o.get();
+            var o = os.get();
 
             var ref = new Object() {
                 boolean succ = false;
@@ -313,7 +316,7 @@ class Out<T> extends IOtool<Out<T>, T> implements Flushable {
             final Future<Boolean>[] flushable = new Future[]{null};
 
             synchronized ( this ){
-                o.ifPresent(o -> {
+                Optional.ofNullable(o.get()).ifPresent(o -> {
                     // 检查线程池
                     pool.ifPresentOrElse(pool -> flushable[0] = pool.submit(() -> {
                                              Out.this.write0(o, data);

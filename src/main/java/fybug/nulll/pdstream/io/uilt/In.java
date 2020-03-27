@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * <h2>读取工具实现.</h2>
@@ -23,13 +24,13 @@ class In<T> extends IOtool<In<T>, T> {
     /**
      * 构造一个读取工具
      *
-     * @param o    读取的流
+     * @param o    获取流的接口
      * @param Tcla 数据类型
      */
     public
-    In(@NotNull Closeable o, @NotNull Class<T> Tcla) { super(o, Tcla); }
+    In(@NotNull Supplier<Closeable> o, @NotNull Class<T> Tcla) { super(o, Tcla); }
 
-    In(Closeable o, Class<T> Tcla, boolean needClose, Consumer<IOException> exception)
+    In(Supplier<Closeable> o, Class<T> Tcla, boolean needClose, Consumer<IOException> exception)
     { super(o, Tcla, needClose, exception); }
 
     //----------------------------------------------------------------------------------------------
@@ -70,7 +71,7 @@ class In<T> extends IOtool<In<T>, T> {
             T base = null;
         };
 
-        o.ifPresent(o -> {
+        Optional.ofNullable(o.get()).ifPresent(o -> {
             try {
                 // 读取
                 ref.base = read0(o);
@@ -160,7 +161,7 @@ class In<T> extends IOtool<In<T>, T> {
         Future<@Nullable T> read() {
             final Future<T>[] future = new Future[]{null};
 
-            o.ifPresent(o -> {
+            Optional.ofNullable(o.get()).ifPresent(o -> {
                 synchronized ( this ){
                     // 检查线程池
                     pool.ifPresent(pool -> future[0] = pool.submit(() -> read0(o)));

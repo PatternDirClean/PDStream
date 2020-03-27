@@ -66,7 +66,7 @@ class InOf {
         private final int MAX_SIZE;
 
         byter(@NonNull InputStream inputStream, int size) {
-            super(inputStream, byte[].class);
+            super(() -> inputStream, byte[].class);
             this.MAX_SIZE = size;
         }
 
@@ -116,7 +116,7 @@ class InOf {
         private final int MAX_SIZE;
 
         charr(@NonNull Reader reader, int size) {
-            super(reader, CharSequence.class);
+            super(() -> reader, CharSequence.class);
             this.MAX_SIZE = size;
         }
 
