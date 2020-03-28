@@ -5,14 +5,13 @@ import org.jetbrains.annotations.Nullable;
 import java.io.Closeable;
 import java.io.Flushable;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.Writer;
 import java.util.LinkedList;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.locks.Condition;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import fybug.nulll.pdconcurrent.ReLock;
 import fybug.nulll.pdconcurrent.SyLock;
@@ -23,49 +22,45 @@ import lombok.Getter;
  * <p>
  * 每次进行输出都会包装为一个操作接口插入执行队列中 {@link #flush()} 与 {@link #close()} 都是<br/>
  * 可使用 {@link #isWrite()} 检查是否有操作在等待<br/>
- * <p>
  * 可追加完成回调与异常处理
+ * <br/><br/>
+ * 通过 {@code of(0} 方法获取构造器，在构造器中赋予属性后调用 {@code build()} 构造实例
  *
  * @author fybug
  * @version 0.0.1
- * @see byteQ
- * @see charQ
  * @since expander 0.0.1
  */
 public abstract
-class QueueOut<T> implements Flushable, Closeable {
+class QueueOut implements Flushable, Closeable {
+    Supplier<Closeable> o;
     /** 是否关闭 */
     @Getter private volatile boolean close = false;
-    /** 换行数据 */
-    protected T LN = null;
-    // 输出对象
-    private final Optional<Closeable> o;
 
-    /** 队列锁 */
+    // 队列锁
     private final ReLock LOCK = SyLock.newReLock();
-    /** 队列管理 */
+    // 队列管理
     private final Condition QUEUE_WAIT = LOCK.newCondition();
 
-    /** 操作队列 */
+    // 操作队列
     private final Queue<Runnable> QUEUE = new LinkedList<>();
-    /** 线程池 */
-    protected final Optional<ExecutorService> pool;
+    // 线程池
+    private final Optional<ExecutorService> pool;
 
     //----------------------------------------------------------------------------------------------
 
     private
-    QueueOut(@Nullable Closeable o, @Nullable ExecutorService p) {
-        this.o = Optional.ofNullable(o);
+    QueueOut(@Nullable Supplier<Closeable> o, @Nullable ExecutorService p) {
+        this.o = o;
         this.pool = Optional.ofNullable(p);
 
-        this.pool.ifPresentOrElse(pool -> pool.submit(this::poolTask),
+        this.pool.ifPresentOrElse(pool -> pool.submit(this::threadTask),
                                   // 单独一个线程
-                                  () -> new Thread(this::poolTask).start());
+                                  () -> new Thread(this::threadTask).start());
     }
 
-    // 操作线程内容
+    // 线程任务代码
     private
-    void poolTask() {
+    void threadTask() {
         while( !close ){
             LOCK.write(() -> Optional.ofNullable(QUEUE.peek()).ifPresentOrElse(run -> {
                 // 执行操作
@@ -84,13 +79,13 @@ class QueueOut<T> implements Flushable, Closeable {
 
     //----------------------------------------------------------------------------------------------
 
-    /** @see #write(T, Runnable) */
+    /** @see #write(byte[], Runnable) */
     public final
-    void write(@NotNull T da) {write(da, () -> {});}
+    void write(@NotNull byte[] da) {write(da, () -> {});}
 
-    /** @see #write(T, Runnable, Consumer) */
+    /** @see #write(byte[], Runnable, Consumer) */
     public final
-    void write(@NotNull T da, @NotNull Runnable callback) {write(da, callback, y -> {});}
+    void write(@NotNull byte[] da, @NotNull Runnable callback) {write(da, callback, y -> {});}
 
     /**
      * 加入一段数据到输出队列
@@ -100,8 +95,9 @@ class QueueOut<T> implements Flushable, Closeable {
      * @param erun     异常处理
      */
     public final
-    void write(@NotNull T da, @NotNull Runnable callback, @NotNull Consumer<IOException> erun) {
-        o.ifPresent((o) -> LOCK.write(() -> {
+    void write(@NotNull byte[] da, @NotNull Runnable callback, @NotNull Consumer<IOException> erun)
+    {
+        Optional.ofNullable(o.get()).ifPresent((o) -> LOCK.write(() -> {
             QUEUE.add(() -> {
                 try {
                     canrun();
@@ -116,38 +112,43 @@ class QueueOut<T> implements Flushable, Closeable {
         }));
     }
 
-    //--------------------------------------------
+    //---------------------------------------------
 
-    /** @see #println(T, Runnable) */
+    /** 输出实现 */
+    protected abstract
+    void write0(@NotNull Closeable o, @NotNull byte[] da) throws IOException;
+
+    //----------------------------------------------------------------------------------------------
+
+    /** @see #print(CharSequence, Runnable) */
     public final
-    void println(@NotNull T da) {println(da, () -> {});}
+    void print(@NotNull CharSequence da) {print(da, () -> {});}
 
     /**
      * @param da       输出的数据
      * @param callback 成功回调
      *
-     * @see #println(T, Runnable, Consumer)
+     * @see #print(CharSequence, Runnable, Consumer)
      */
     public final
-    void println(@NotNull T da, @NotNull Runnable callback) {println(da, callback, t -> {});}
+    void print(@NotNull CharSequence da, @NotNull Runnable callback) {print(da, callback, t -> {});}
 
     /**
-     * 加入一段数据到输出队列
-     * <p>
-     * 输出 da + [\n | \r\n]
+     * 加入一段字符到输出队列
      *
      * @param da       输出的数据
      * @param callback 成功回调
      * @param erun     异常处理
      */
     public final
-    void println(@NotNull T da, @NotNull Runnable callback, @NotNull Consumer<IOException> erun) {
-        o.ifPresent(o -> LOCK.write(() -> {
+    void print(@NotNull CharSequence da, @NotNull Runnable callback,
+               @NotNull Consumer<IOException> erun)
+    {
+        Optional.ofNullable(o.get()).ifPresent(o -> LOCK.write(() -> {
             QUEUE.add(() -> {
                 try {
                     canrun();
-                    write0(o, da);
-                    write0(o, LN);
+                    print0(o, da);
                     // 回调
                     pool.ifPresentOrElse(pool -> pool.submit(callback), callback);
                 } catch ( IOException e ) {
@@ -160,17 +161,59 @@ class QueueOut<T> implements Flushable, Closeable {
 
     //---------------------------------------------
 
+    /** @see #println(CharSequence, Runnable) */
+    public final
+    void println(@NotNull CharSequence da)
+    {println(da, () -> {});}
+
+    /** @see #println(CharSequence, Runnable, Consumer) */
+    public final
+    void println(@NotNull CharSequence da, @NotNull Runnable callback)
+    {println(da, callback, y -> {});}
+
+    /**
+     * {@code print() + [\n | \r\n]}
+     *
+     * @see #print(CharSequence, Runnable, Consumer)
+     */
+    public final
+    void println(@NotNull CharSequence da, @NotNull Runnable callback,
+                 @NotNull Consumer<IOException> erun)
+    {print(da, callback, erun);}
+
+    //---------------------------------------------
+
+    /** 输出实现 */
+    protected abstract
+    void print0(@NotNull Closeable o, @NotNull CharSequence da) throws IOException;
+
+    //---------------------------------------------
+
     /**
      * 追加一段数据到输出队列中
      *
      * @param da 输出的数据
      *
-     * @see #write(T)
+     * @see #write(byte[])
      */
     @NotNull
     public final
-    QueueOut<T> append(@NotNull T da) {
+    QueueOut append(@NotNull byte[] da) {
         write(da);
+        return this;
+    }
+
+    /**
+     * 追加一段数据到输出队列中
+     *
+     * @param da 输出的数据
+     *
+     * @see #print(CharSequence)
+     */
+    @NotNull
+    public final
+    QueueOut append(@NotNull CharSequence da) {
+        print(da);
         return this;
     }
 
@@ -179,20 +222,14 @@ class QueueOut<T> implements Flushable, Closeable {
      *
      * @param da 输出的数据
      *
-     * @see #println(T)
+     * @see #println(CharSequence)
      */
     @NotNull
     public final
-    QueueOut<T> appendln(@NotNull T da) {
+    QueueOut appendln(@NotNull CharSequence da) {
         println(da);
         return this;
     }
-
-    //---------------------------------------------
-
-    /** 输出实现 */
-    protected abstract
-    void write0(@NotNull Closeable o, @NotNull T da) throws IOException;
 
     //----------------------------------------------------------------------------------------------
 
@@ -206,7 +243,7 @@ class QueueOut<T> implements Flushable, Closeable {
     public
     void flush() throws IOException {
         canrun();
-        o.ifPresent(o -> LOCK.write(() -> {
+        Optional.ofNullable(o.get()).ifPresent(o -> LOCK.write(() -> {
             QUEUE.add(() -> {
                 try {
                     ((Flushable) o).flush();
@@ -220,7 +257,7 @@ class QueueOut<T> implements Flushable, Closeable {
     @Override
     public
     void close() {
-        o.ifPresent(o -> LOCK.write(() -> {
+        Optional.ofNullable(o.get()).ifPresent(o -> LOCK.write(() -> {
             if (!isClose()) {
                 QUEUE.add(() -> {
                     close = true;
@@ -247,79 +284,4 @@ class QueueOut<T> implements Flushable, Closeable {
             throw new IOException();
     }
 
-    /*--------------------------------------------------------------------------------------------*/
-
-    /**
-     * 构造输出队列
-     *
-     * @param out 输出的流
-     */
-    @NotNull
-    public static
-    byteQ of(OutputStream out) {return new byteQ(out);}
-
-    /**
-     * 构造输出队列
-     *
-     * @param out  输出的流
-     * @param pool 执行用线程池
-     */
-    @NotNull
-    public static
-    byteQ of(OutputStream out, ExecutorService pool) {return new byteQ(out, pool);}
-
-    /** 字节输出类型 */
-    public static final
-    class byteQ extends QueueOut<byte[]> {
-        private
-        byteQ(@Nullable OutputStream o) { this(o, null); }
-
-        private
-        byteQ(@Nullable OutputStream o, @Nullable ExecutorService p) {
-            super(o, p);
-            LN = System.lineSeparator().getBytes();
-        }
-
-        protected
-        void write0(@NotNull Closeable o, @NotNull byte[] da) throws IOException
-        { ((OutputStream) o).write(da); }
-    }
-
-    //--------------------------------------------------
-
-    /**
-     * 构造输出队列
-     *
-     * @param writer 输出的流
-     */
-    @NotNull
-    public static
-    charQ of(Writer writer) {return new charQ(writer);}
-
-    /**
-     * 构造输出队列
-     *
-     * @param writer 输出的流
-     * @param pool   执行用线程池
-     */
-    @NotNull
-    public static
-    charQ of(Writer writer, ExecutorService pool) {return new charQ(writer, pool);}
-
-    /** 字符输出类型 */
-    private static final
-    class charQ extends QueueOut<CharSequence> {
-        private
-        charQ(@Nullable Writer o) { this(o, null); }
-
-        private
-        charQ(@Nullable Writer o, @Nullable ExecutorService p) {
-            super(o, p);
-            LN = System.lineSeparator();
-        }
-
-        protected
-        void write0(@NotNull Closeable o, @NotNull CharSequence da) throws IOException
-        { ((Writer) o).write(da.toString()); }
-    }
 }
