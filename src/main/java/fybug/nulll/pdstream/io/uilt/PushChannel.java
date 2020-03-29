@@ -270,6 +270,7 @@ class PushChannel implements Closeable {
      * @version 0.0.1
      * @since PushChannel 0.0.2
      */
+    @SuppressWarnings( "all" )
     @Accessors( fluent = true, chain = true )
     public static
     class Build {
