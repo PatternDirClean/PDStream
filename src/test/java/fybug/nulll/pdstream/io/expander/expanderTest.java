@@ -6,6 +6,6 @@ import fybug.nulll.pdstream.io.InOfTest;
 import fybug.nulll.pdstream.io.OutOfTest;
 
 @RunWith( Suite.class )
-@Suite.SuiteClasses( {QueueOutTest.class} )
+@Suite.SuiteClasses( {} )
 public
 class expanderTest {}

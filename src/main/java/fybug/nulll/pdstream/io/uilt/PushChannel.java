@@ -25,7 +25,17 @@ import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
 
-// todo test
+/**
+ * <h2>推送通道.</h2>
+ * 定义数据容器，并按照指定规则输出数据<br/>
+ * 每次推送都推送全部数据，既使用 {@link #append(Object)} 追加数据的时候标准的流中的表现应该为 {@code {追加前的数据} + {追加前的数据} + {追加的数据}}<br/>
+ * 但是使用定时输出则为，在时间节点前完成追加则是 {@code {追加前的数据} + {追加的数据}} 在时间节点后完成追加则是上面相同<br/>
+ * 使用文件作为指向的时候每次都会重新写入
+ *
+ * @author fybug
+ * @version 0.0.1
+ * @since uilt 0.0.4
+ */
 public abstract
 class PushChannel implements Closeable {
     // 流生产方法
@@ -93,11 +103,13 @@ class PushChannel implements Closeable {
         OUT = out;
         IS_STREAM = isstreaem;
         /* 校验 */
-        if (Writer.class.isAssignableFrom(aclass))
+        if (Writer.class.isAssignableFrom(aclass)) {
             IS_WRITE = true;
-        else if (OutputStream.class.isAssignableFrom(aclass))
+            data = "";
+        } else if (OutputStream.class.isAssignableFrom(aclass)) {
             IS_WRITE = false;
-        else
+            data = new byte[0];
+        } else
             throw new IOException("Type is not Writer or OutputStream!");
     }
 
@@ -143,28 +155,28 @@ class PushChannel implements Closeable {
     /**
      * 追加数据，在满足输出条件时会进行输出
      *
-     * @param data byte[] | String | Serializable
+     * @param da byte[] | String | Serializable
      */
     public
-    void append(@NotNull Object data) throws IOException {
+    void append(@NotNull Object da) throws IOException {
         // 处理后的数据
-        Object da;
+        Object ree;
 
         if (IS_WRITE) {
             // 缓存流
-            var out = new StringWriter(this.data.toString().length());
+            var out = new StringWriter(((String) this.data).length());
             // 原数据
             out.write((String) this.data);
 
             /* 字符流处理 */
-            if (data instanceof String)
-                out.write((String) data);
-            else if (data instanceof byte[])
-                out.write(new String((byte[]) data, UTF_8));
+            if (da instanceof String)
+                out.write((String) da);
+            else if (da instanceof byte[])
+                out.write(new String((byte[]) da, UTF_8));
             else
                 throw new IOException("data type not is byte[] or String");
 
-            da = out.toString();
+            ree = out.toString();
         } else {
             // 缓存流
             var out = new ByteArrayOutputStream(((byte[]) this.data).length);
@@ -172,19 +184,19 @@ class PushChannel implements Closeable {
             out.write((byte[]) this.data);
 
             /* 字节流处理 */
-            if (data instanceof byte[])
-                out.write((byte[]) data);
-            else if (data instanceof String)
-                out.write(((String) data).getBytes(UTF_8));
-            else if (data instanceof Serializable)
-                out.write(IOUtil.serializable((Serializable) data));
+            if (da instanceof byte[])
+                out.write((byte[]) da);
+            else if (da instanceof String)
+                out.write(((String) da).getBytes(UTF_8));
+            else if (da instanceof Serializable)
+                out.write(IOUtil.serializable((Serializable) da));
             else
                 throw new IOException("data type not is byte[] or String or Serializable");
 
-            da = out.toByteArray();
+            ree = out.toByteArray();
         }
         // 设置数据
-        LOCK.write(() -> this.data = da);
+        LOCK.write(() -> this.data = ree);
 
         if (canWrite())
             send();
@@ -408,7 +420,8 @@ class PushChannel implements Closeable {
         // 启动计划任务
         private
         void runing(long time) {
-            Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> {
+            pool = Executors.newSingleThreadScheduledExecutor();
+            pool.scheduleAtFixedRate(() -> {
                 try {
                     send();
                 } catch ( IOException e ) {
@@ -491,7 +504,7 @@ class PushChannel implements Closeable {
      * 在 {@link #set(Object)}、{@link #append(Object)} 的时候如果数据溢出了缓冲区，无论是到达溢出界限还是已经溢出<br/>
      * 因为这是在单次数据调整结束后进行的检查，所以数据可能会溢出，在溢出后会执行 {@link #send()}，之后数据依旧留在缓存区<br/>
      * 缓存区的单位依照实际的数据类型长度，数据类型为 {@link String} 时则为检查 {@link String#length()}<br/>
-     * 数据类型为 {@link byte[]} 时则检查 {@link byte[]#length}
+     * 数据类型为 {@code byte[]} 时则检查 {@code byte[].length}
      *
      * @author fybug
      * @version 0.0.1
@@ -529,9 +542,9 @@ class PushChannel implements Closeable {
         protected
         boolean canWrite() {
             if (data instanceof byte[])
-                return BUFFSIZE >= ((byte[]) data).length - 1;
+                return BUFFSIZE <= ((byte[]) data).length;
             else if (data instanceof String)
-                return BUFFSIZE >= data.toString().length() - 1;
+                return BUFFSIZE <= ((String) data).length();
 
             return false;
         }
