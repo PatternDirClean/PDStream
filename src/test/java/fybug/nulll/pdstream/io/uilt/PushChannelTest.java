@@ -29,7 +29,7 @@ class PushChannelTest {
     @Test
     public
     void sync() throws IOException {
-        channel = PushChannel.ofSync(writer);
+        channel = PushChannel.build().point(writer).sync();
         channel.append(testdata);
         Assert.assertEquals(testdata, writer.toString());
         channel.append(testdata);
@@ -39,7 +39,7 @@ class PushChannelTest {
     @Test
     public
     void timing() throws IOException, InterruptedException {
-        channel = PushChannel.ofTiming(writer, 1000);
+        channel = PushChannel.build().point(writer).timing(1000);
         channel.append(testdata);
         Assert.assertEquals("", writer.toString());
         channel.append(testdata);
@@ -50,7 +50,7 @@ class PushChannelTest {
     @Test
     public
     void buffer() throws IOException {
-        channel = PushChannel.ofBuffer(writer, testdata.length());
+        channel = PushChannel.build().point(writer).buffer(testdata.length());
         channel.append(testdata);
         Assert.assertEquals(testdata, writer.toString());
         channel.append(testdata);

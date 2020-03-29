@@ -19,8 +19,10 @@ import java.util.concurrent.TimeUnit;
 import fybug.nulll.pdconcurrent.SyLock;
 import fybug.nulll.pdconcurrent.fun.trySupplier;
 import fybug.nulll.pdstream.io.IOUtil;
+import lombok.experimental.Accessors;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.nio.file.StandardOpenOption.APPEND;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
@@ -28,12 +30,32 @@ import static java.nio.file.StandardOpenOption.WRITE;
 /**
  * <h2>推送通道.</h2>
  * 定义数据容器，并按照指定规则输出数据<br/>
- * 每次推送都推送全部数据，既使用 {@link #append(Object)} 追加数据的时候标准的流中的表现应该为 {@code {追加前的数据} + {追加前的数据} + {追加的数据}}<br/>
+ * 构造请使用 {@link #build()}，普通构造方法建议仅在需要自定义输出规则 && 熟读该工具源码的情况下使用<br/>
+ * 每次推送都推送全部数据，使用 {@link #append(Object)} 追加数据的时候标准的流中的表现应该为 {@code {追加前的数据} + {追加前的数据} + {追加的数据}}<br/>
  * 但是使用定时输出则为，在时间节点前完成追加则是 {@code {追加前的数据} + {追加的数据}} 在时间节点后完成追加则是上面相同<br/>
- * 使用文件作为指向的时候每次都会重新写入
+ * 但在开启 {@link Build#clear()} 之后两个数据都将会为 {@code {追加前的数据} + {追加的数据}}<br/>
+ * 使用文件作为指向的时候请查看 {@link Build#append()}
+ * <br/><br/>
+ * <pre>使用示例：
+ *    public static
+ *     void main(String[] args) {
+ *         try ( var channel = PushChannel.build()
+ *                                        .point(OutputStream.nullOutputStream())
+ *                                        .clear()
+ *                                        .sync()
+ *         ) {
+ *             channel.set("");
+ *             channel.append("");
+ *             // 强制输出
+ *             channel.send();
+ *         } catch ( IOException e ) {
+ *             e.printStackTrace();
+ *         }
+ *     }
+ * </pre>
  *
  * @author fybug
- * @version 0.0.1
+ * @version 0.0.2
  * @since uilt 0.0.4
  */
 public abstract
@@ -49,43 +71,10 @@ class PushChannel implements Closeable {
     protected final SyLock LOCK = SyLock.newObjLock();
     /** 数据 */
     protected Object data;
+    /** 是否清除残留数据 */
+    protected boolean needclear;
 
     //----------------------------------------------------------------------------------------------
-
-    /**
-     * 指向输出流的保存通道
-     *
-     * @param outputStream 指向的流
-     */
-    public
-    PushChannel(@NotNull OutputStream outputStream) throws IOException
-    { this(() -> outputStream, OutputStream.class, true); }
-
-    /**
-     * 指向输出流的保存通道
-     *
-     * @param writer 指向的流
-     */
-    public
-    PushChannel(@NotNull Writer writer) throws IOException
-    { this(() -> writer, Writer.class, true); }
-
-    /**
-     * 指向文件的保存通道
-     *
-     * @param file 指向的文件
-     */
-    public
-    PushChannel(@NotNull File file) throws IOException { this(file.toPath()); }
-
-    /**
-     * 指向路径的保存通道
-     *
-     * @param path 指向的路径
-     */
-    public
-    PushChannel(@NotNull Path path) throws IOException
-    { this(() -> Files.newOutputStream(path, WRITE, TRUNCATE_EXISTING, CREATE), OutputStream.class, false); }
 
     /**
      * 生成保存通道
@@ -95,9 +84,24 @@ class PushChannel implements Closeable {
      * @param isstreaem 是否指向直接的流对象
      * @param <O>       指向的对象
      */
+    public
+    <O extends Flushable> PushChannel(@NotNull trySupplier<O, IOException> out,
+                                      @NotNull Class<O> aclass, boolean isstreaem)
+    throws IOException
+    { this(out, aclass, isstreaem, false); }
+
+    /**
+     * 生成保存通道
+     *
+     * @param out       指向目标工场方法
+     * @param aclass    目标类型
+     * @param isstreaem 是否指向直接的流对象
+     * @param clear     是否在 {@link #send()} 之后清空当前数据
+     * @param <O>       指向的对象
+     */
     protected
-    <O extends Flushable & Closeable> PushChannel(@NotNull trySupplier<O, IOException> out,
-                                                  @NotNull Class<O> aclass, boolean isstreaem)
+    <O extends Flushable> PushChannel(@NotNull trySupplier<O, IOException> out,
+                                      @NotNull Class<O> aclass, boolean isstreaem, boolean clear)
     throws IOException
     {
         OUT = out;
@@ -111,6 +115,7 @@ class PushChannel implements Closeable {
             data = new byte[0];
         } else
             throw new IOException("Type is not Writer or OutputStream!");
+        needclear = clear;
     }
 
     //----------------------------------------------------------------------------------------------
@@ -218,12 +223,16 @@ class PushChannel implements Closeable {
     public
     void send() throws IOException {
         synchronized ( this ){
-            LOCK.tryread(IOException.class, () -> {
+            LOCK.trywrite(IOException.class, () -> {
                 var out = OUT.get();
-                if (IS_WRITE)
+
+                if (IS_WRITE) {
                     ((Writer) out).write((String) data);
-                else
+                    data = needclear ? "" : data;
+                } else {
                     ((OutputStream) out).write((byte[]) data);
+                    data = needclear ? new byte[0] : data;
+                }
                 out.flush();
 
                 if (IS_STREAM)
@@ -246,52 +255,134 @@ class PushChannel implements Closeable {
     /*--------------------------------------------------------------------------------------------*/
 
     /**
-     * 构造实时写入的通道
+     * 获取构造工场
      *
-     * @param outputStream 指向的流
-     *
-     * @see SyncChannel
+     * @see Build
      */
     @NotNull
     public static
-    PushChannel ofSync(@NotNull OutputStream outputStream) throws IOException
-    { return new SyncChannel(outputStream); }
+    Build build() { return new Build(); }
 
     /**
-     * 构造实时写入的通道
+     * 构造工场
      *
-     * @param writer 指向的流
-     *
-     * @see SyncChannel
+     * @author fybug
+     * @version 0.0.1
+     * @since PushChannel 0.0.2
      */
-    @NotNull
+    @Accessors( fluent = true, chain = true )
     public static
-    PushChannel ofSync(@NotNull Writer writer) throws IOException
-    { return new SyncChannel(writer); }
+    class Build {
+        // 指向对象工场方法
+        private trySupplier<? extends Flushable, IOException> out = OutputStream::nullOutputStream;
+        // 指向类型
+        private Class<? extends Flushable> aclass = OutputStream.class;
+        // 是否指向流
+        private boolean isstreaem = true;
 
-    /**
-     * 构造实时写入的通道
-     *
-     * @param file 指向的文件
-     *
-     * @see SyncChannel
-     */
-    @NotNull
-    public static
-    PushChannel ofSync(@NotNull File file) throws IOException
-    { return new SyncChannel(file); }
+        // 文件采用追加写入
+        private boolean append = false;
+        // 是否清空
+        private boolean clear = false;
 
-    /**
-     * 构造实时写入的通道
-     *
-     * @param pa 指向的路径
-     *
-     * @see SyncChannel
-     */
-    @NotNull
-    public static
-    PushChannel ofSync(@NotNull Path pa) throws IOException
-    { return new SyncChannel(pa); }
+        //------------------------------------------------------------------------------------------
+
+        @NotNull
+        public
+        Build point(@NotNull OutputStream outputStream)
+        { return point(() -> outputStream, OutputStream.class, true); }
+
+        @NotNull
+        public
+        Build point(@NotNull Writer writer)
+        { return point(() -> writer, Writer.class, true); }
+
+        @NotNull
+        public
+        Build point(@NotNull File files) { return point(files.toPath()); }
+
+        @NotNull
+        public
+        Build point(@NotNull Path path) {
+            return point(() -> Files.newOutputStream(path, WRITE, CREATE, append ? APPEND
+                    : TRUNCATE_EXISTING), OutputStream.class, false);
+        }
+
+        @NotNull
+        public
+        <O extends Flushable> Build point(@NotNull trySupplier<O, IOException> fun,
+                                          @NotNull Class<O> clas, boolean isstreaem)
+        {
+            out = fun;
+            aclass = clas;
+            this.isstreaem = isstreaem;
+            return this;
+        }
+
+        //------------------------------------------------------------------------------------------
+
+        /**
+         * 数据采用截断输出还是追加输出
+         * <p>
+         * 仅在指向文件或路径的时候生效
+         */
+        @NotNull
+        public
+        Build append() {
+            append = true;
+            return this;
+        }
+
+        /**
+         * 输出完成后是否清除残留数据
+         *
+         * @see #needclear
+         */
+        @NotNull
+        public
+        Build clear() {
+            clear = true;
+            return this;
+        }
+
+        //------------------------------------------------------------------------------------------
+
+        /**
+         * 构造实时写入的通道
+         *
+         * @see SyncChannel
+         */
+        @NotNull
+        public
+        SyncChannel sync() throws IOException
+        { return new SyncChannel(out, (Class) aclass, isstreaem, clear); }
+
+        /**
+         * 构造定时输出通道
+         *
+         * @param time 操作间隔，单位 毫秒
+         *
+         * @see TimingChannel
+         */
+        @NotNull
+        public
+        TimingChannel timing(long time) throws IOException
+        { return new TimingChannel(out, (Class) aclass, isstreaem, clear, time); }
+
+        /**
+         * 构造溢出式输出通道
+         *
+         * @param buffsize 缓存大小，单位 实际数据的长度 [String | byte[]]
+         *
+         * @see BufferChannel
+         */
+        @NotNull
+        public
+        BufferChannel buffer(int buffsize) throws IOException
+        { return new BufferChannel(out, (Class) aclass, isstreaem, clear, buffsize); }
+    }
+
+    /*--------------------------------------------------------------------------------------------*/
 
     /**
      * 同步式保存通道
@@ -299,23 +390,21 @@ class PushChannel implements Closeable {
      * 在 {@link #set(Object)}、{@link #append(Object)} 的同时会进行 {@link #send()}
      *
      * @author fybug
-     * @version 0.0.1
+     * @version 0.0.2
      * @since PushChannel 0.0.1
      */
     public static final
     class SyncChannel extends PushChannel {
-
         public
-        SyncChannel(@NotNull OutputStream outputStream) throws IOException { super(outputStream); }
+        <O extends Flushable> SyncChannel(@NotNull trySupplier<O, IOException> out,
+                                          @NotNull Class<O> aclass, boolean isstreaem)
+        throws IOException
+        { super(out, aclass, isstreaem); }
 
-        public
-        SyncChannel(@NotNull Writer writer) throws IOException { super(writer); }
-
-        public
-        SyncChannel(@NotNull File file) throws IOException { super(file); }
-
-        public
-        SyncChannel(@NotNull Path path) throws IOException { super(path); }
+        <O extends Flushable> SyncChannel(@NotNull trySupplier<O, IOException> out,
+                                          @NotNull Class<O> aclass, boolean isstreaem,
+                                          boolean clear) throws IOException
+        { super(out, aclass, isstreaem, clear); }
 
         @Override
         protected
@@ -325,93 +414,33 @@ class PushChannel implements Closeable {
     /*--------------------------------------------------------------------------------------------*/
 
     /**
-     * 构造定时输出通道
-     *
-     * @param outputStream 指向的流
-     * @param time         操作间隔，单位 毫秒
-     *
-     * @see TimingChannel
-     */
-    @NotNull
-    public static
-    PushChannel ofTiming(@NotNull OutputStream outputStream, long time) throws IOException
-    { return new TimingChannel(outputStream, time); }
-
-    /**
-     * 构造定时输出通道
-     *
-     * @param writer 指向的流
-     * @param time   操作间隔，单位 毫秒
-     *
-     * @see TimingChannel
-     */
-    @NotNull
-    public static
-    PushChannel ofTiming(@NotNull Writer writer, long time) throws IOException
-    { return new TimingChannel(writer, time); }
-
-    /**
-     * 构造定时输出通道
-     *
-     * @param file 指向的文件
-     * @param time 操作间隔，单位 毫秒
-     *
-     * @see TimingChannel
-     */
-    @NotNull
-    public static
-    PushChannel ofTiming(@NotNull File file, long time) throws IOException
-    { return new TimingChannel(file, time); }
-
-    /**
-     * 构造定时输出通道
-     *
-     * @param pa   指向的路径
-     * @param time 操作间隔，单位 毫秒
-     *
-     * @see TimingChannel
-     */
-    @NotNull
-    public static
-    PushChannel ofTiming(@NotNull Path pa, long time) throws IOException
-    { return new TimingChannel(pa, time); }
-
-
-    /**
      * 定时保存通道
      * <p>
      * 在 {@link #set(Object)}、{@link #append(Object)} 的时候不会进行 {@link #send()} 而是在等待的时间间隔结束后进行<br/>
      * 时间间隔单位为毫秒
      *
      * @author fybug
-     * @version 0.0.1
+     * @version 0.0.2
      * @since PushChannel 0.0.1
      */
     public static final
     class TimingChannel extends PushChannel {
+
         private ScheduledExecutorService pool;
 
-        public
-        TimingChannel(@NotNull OutputStream outputStream, long time) throws IOException {
-            super(outputStream);
-            runing(time);
-        }
+        //------------------------------------------------------------------------------------------
 
         public
-        TimingChannel(@NotNull Writer writer, long time) throws IOException {
-            super(writer);
-            runing(time);
-        }
+        <O extends Flushable> TimingChannel(@NotNull trySupplier<O, IOException> out,
+                                            @NotNull Class<O> aclass, boolean isstreaem, long time)
+        throws IOException
+        { this(out, aclass, isstreaem, false, time); }
 
-        public
-        TimingChannel(@NotNull File file, long time) throws IOException {
-            super(file);
-            runing(time);
-        }
-
-        public
-        TimingChannel(@NotNull Path path, long time) throws IOException {
-            super(path);
+        <O extends Flushable> TimingChannel(@NotNull trySupplier<O, IOException> out,
+                                            @NotNull Class<O> aclass, boolean isstreaem,
+                                            boolean clear, long time) throws IOException
+        {
+            super(out, aclass, isstreaem, clear);
             runing(time);
         }
 
@@ -447,58 +476,6 @@ class PushChannel implements Closeable {
     /*--------------------------------------------------------------------------------------------*/
 
     /**
-     * 构造溢出式输出通道
-     *
-     * @param outputStream 指向的流
-     * @param buffsize     缓存大小，单位 实际数据的长度 [String | byte[]]
-     *
-     * @see BufferChannel
-     */
-    @NotNull
-    public static
-    PushChannel ofBuffer(@NotNull OutputStream outputStream, int buffsize) throws IOException
-    { return new BufferChannel(outputStream, buffsize); }
-
-    /**
-     * 构造溢出式输出通道
-     *
-     * @param writer   指向的流
-     * @param buffsize 缓存大小，单位 实际数据的长度 [String | byte[]]
-     *
-     * @see BufferChannel
-     */
-    @NotNull
-    public static
-    PushChannel ofBuffer(@NotNull Writer writer, int buffsize) throws IOException
-    { return new BufferChannel(writer, buffsize); }
-
-    /**
-     * 构造溢出式输出通道
-     *
-     * @param file     指向的文件
-     * @param buffsize 缓存大小，单位 实际数据的长度 [String | byte[]]
-     *
-     * @see BufferChannel
-     */
-    @NotNull
-    public static
-    PushChannel ofBuffer(@NotNull File file, int buffsize) throws IOException
-    { return new BufferChannel(file, buffsize); }
-
-    /**
-     * 构造溢出式输出通道
-     *
-     * @param pa       指向的路径
-     * @param buffsize 缓存大小，单位 实际数据的长度 [String | byte[]]
-     *
-     * @see BufferChannel
-     */
-    @NotNull
-    public static
-    PushChannel ofBuffer(@NotNull Path pa, int buffsize) throws IOException
-    { return new BufferChannel(pa, buffsize); }
-
-    /**
      * 溢出式保存通道
      * <p>
      * 在 {@link #set(Object)}、{@link #append(Object)} 的时候如果数据溢出了缓冲区，无论是到达溢出界限还是已经溢出<br/>
@@ -507,36 +484,31 @@ class PushChannel implements Closeable {
      * 数据类型为 {@code byte[]} 时则检查 {@code byte[].length}
      *
      * @author fybug
-     * @version 0.0.1
+     * @version 0.0.2
      * @since PushChannel 0.0.1
      */
     public static final
     class BufferChannel extends PushChannel {
+
         private final int BUFFSIZE;
 
+        //------------------------------------------------------------------------------------------
+
         public
-        BufferChannel(@NotNull OutputStream outputStream, int buffsize) throws IOException {
-            super(outputStream);
+        <O extends Flushable> BufferChannel(@NotNull trySupplier<O, IOException> out,
+                                            @NotNull Class<O> aclass, boolean isstreaem,
+                                            int buffsize) throws IOException
+        { this(out, aclass, isstreaem, false, buffsize); }
+
+        <O extends Flushable> BufferChannel(@NotNull trySupplier<O, IOException> out,
+                                            @NotNull Class<O> aclass, boolean isstreaem,
+                                            boolean clear, int buffsize) throws IOException
+        {
+            super(out, aclass, isstreaem, clear);
             BUFFSIZE = buffsize;
         }
 
-        public
-        BufferChannel(@NotNull Writer writer, int buffsize) throws IOException {
-            super(writer);
-            BUFFSIZE = buffsize;
-        }
-
-        public
-        BufferChannel(@NotNull File file, int buffsize) throws IOException {
-            super(file);
-            BUFFSIZE = buffsize;
-        }
-
-        public
-        BufferChannel(@NotNull Path path, int buffsize) throws IOException {
-            super(path);
-            BUFFSIZE = buffsize;
-        }
+        //------------------------------------------------------------------------------------------
 
         @Override
         protected
