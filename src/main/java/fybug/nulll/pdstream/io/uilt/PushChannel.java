@@ -265,7 +265,11 @@ class PushChannel implements Closeable {
     Build build() { return new Build(); }
 
     /**
-     * 构造工场
+     * <h2>构造工具.</h2>
+     * {@link #clear()} 指定输出完成后是否清除残留的数据，在进行的是追加输出的时候使用，否则前面的数据会再次被输出<br/>
+     * {@link #append()} 该方法仅在指向文件或路径的时候使用，文件是追加输出还是截断输出，建议启用追加输出<br/>
+     * {@code point()} 方法指定指向的数据位置<br/>
+     * {@link #sync()}、{@link #timing(long)}、{@link #buffer(int)} 获取不同实现的实例
      *
      * @author fybug
      * @version 0.0.1

@@ -14,7 +14,10 @@ import lombok.experimental.Accessors;
 /**
  * 读写工具构造器
  * <p>
- * 使用构造器中的配置构造读写工具
+ * 使用构造器中的配置构造读写工具<br/>
+ * {@link #close()}、{@link #noclose()} 定义操作后是否关闭流<br/>
+ * {@link #exception(Consumer)} 定义错误处理接口<br/>
+ * {@link #async()}、{@link #async(ExecutorService)} 定义使用异步处理，最后的方法指定运行用线程池，仅在需要复用的时候调用
  *
  * @author fybug
  * @version 0.0.2
