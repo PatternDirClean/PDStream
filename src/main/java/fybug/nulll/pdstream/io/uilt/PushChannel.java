@@ -29,8 +29,9 @@ import static java.nio.file.StandardOpenOption.WRITE;
 
 /**
  * <h2>推送通道.</h2>
- * 定义数据容器，并按照指定规则输出数据<br/>
- * 构造请使用 {@link #build()}，普通构造方法建议仅在需要自定义输出规则 && 熟读该工具源码的情况下使用<br/>
+ * 定义数据通道，并按照指定规则输出数据<br/>
+ * 构造请使用 {@link #build()}，使用构造器 {@link Build} 构造不同输出规则的通道<br/>
+ * 普通构造方法建议仅在需要自定义输出规则 && 熟读该工具源码的情况下使用<br/>
  * 每次推送都推送全部数据，使用 {@link #append(Object)} 追加数据的时候标准的流中的表现应该为 {@code {追加前的数据} + {追加前的数据} + {追加的数据}}<br/>
  * 但是使用定时输出则为，在时间节点前完成追加则是 {@code {追加前的数据} + {追加的数据}} 在时间节点后完成追加则是上面相同<br/>
  * 但在开启 {@link Build#clear()} 之后两个数据都将会为 {@code {追加前的数据} + {追加的数据}}<br/>
@@ -288,20 +289,40 @@ class PushChannel implements Closeable {
 
         //------------------------------------------------------------------------------------------
 
+        /**
+         * 指向输出流
+         *
+         * @param outputStream 指向的流
+         */
         @NotNull
         public
         Build point(@NotNull OutputStream outputStream)
         { return point(() -> outputStream, OutputStream.class, true); }
 
+        /**
+         * 指向输出流
+         *
+         * @param writer 指向的流
+         */
         @NotNull
         public
         Build point(@NotNull Writer writer)
         { return point(() -> writer, Writer.class, true); }
 
+        /**
+         * 指向文件
+         *
+         * @param files 指向的文件
+         */
         @NotNull
         public
         Build point(@NotNull File files) { return point(files.toPath()); }
 
+        /**
+         * 指向路径
+         *
+         * @param path 指向的路径
+         */
         @NotNull
         public
         Build point(@NotNull Path path) {
@@ -309,6 +330,13 @@ class PushChannel implements Closeable {
                     : TRUNCATE_EXISTING), OutputStream.class, false);
         }
 
+        /**
+         * 指向底层方法
+         *
+         * @param fun       目标生成方法
+         * @param clas      目标实际类型
+         * @param isstreaem 是否为纯流容器
+         */
         @NotNull
         public
         <O extends Flushable> Build point(@NotNull trySupplier<O, IOException> fun,

@@ -3,19 +3,22 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.Flushable;
 import java.io.IOException;
-import java.util.LinkedList;
-import java.util.Optional;
-import java.util.Queue;
+import java.io.OutputStream;
+import java.io.Writer;
+import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.locks.Condition;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
-import fybug.nulll.pdconcurrent.ReLock;
-import fybug.nulll.pdconcurrent.SyLock;
+import fybug.nulll.pdstream.io.uilt.PushChannel;
+import fybug.nulll.task.TaskQueue;
 import lombok.Getter;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 
 /**
  * 异步队列输出工具
@@ -30,51 +33,37 @@ import lombok.Getter;
  * @version 0.0.1
  * @since expander 0.0.1
  */
-public abstract
+public
 class QueueOut implements Flushable, Closeable {
-    Supplier<Closeable> o;
+    // 输出通道
+    private final PushChannel OUT;
     /** 是否关闭 */
     @Getter private volatile boolean close = false;
 
-    // 队列锁
-    private final ReLock LOCK = SyLock.newReLock();
-    // 队列管理
-    private final Condition QUEUE_WAIT = LOCK.newCondition();
-
-    // 操作队列
-    private final Queue<Runnable> QUEUE = new LinkedList<>();
-    // 线程池
-    private final Optional<ExecutorService> pool;
+    // 任务队列
+    private final TaskQueue TASKS;
+    // 任务队列 id
+    private final int ID_TASKS;
+    // 回调处理 id
+    private final int ID_RUNNBACK;
 
     //----------------------------------------------------------------------------------------------
 
-    private
-    QueueOut(@Nullable Supplier<Closeable> o, @Nullable ExecutorService p) {
-        this.o = o;
-        this.pool = Optional.ofNullable(p);
+    protected
+    QueueOut(@NotNull PushChannel out, @Nullable ExecutorService p)
+    { this(out, p, new TaskQueue()); }
 
-        this.pool.ifPresentOrElse(pool -> pool.submit(this::threadTask),
-                                  // 单独一个线程
-                                  () -> new Thread(this::threadTask).start());
-    }
+    protected
+    QueueOut(@NotNull PushChannel out, @Nullable ExecutorService p, @NotNull TaskQueue taskQueue) {
+        this.OUT = out;
+        this.TASKS = taskQueue;
 
-    // 线程任务代码
-    private
-    void threadTask() {
-        while( !close ){
-            LOCK.write(() -> Optional.ofNullable(QUEUE.peek()).ifPresentOrElse(run -> {
-                // 执行操作
-                run.run();
-                QUEUE.poll();
-            }, () -> {
-                try {
-                    // 等待数据
-                    QUEUE_WAIT.await();
-                } catch ( InterruptedException e ) {
-                    close = true;
-                }
-            }));
-        }
+        if (p == null)
+            ID_TASKS = taskQueue.addQueue();
+        else
+            ID_TASKS = taskQueue.addQueue(p);
+        // 处理回调用
+        ID_RUNNBACK = taskQueue.addQueue(Executors.newSingleThreadExecutor());
     }
 
     //----------------------------------------------------------------------------------------------
@@ -97,26 +86,23 @@ class QueueOut implements Flushable, Closeable {
     public final
     void write(@NotNull byte[] da, @NotNull Runnable callback, @NotNull Consumer<IOException> erun)
     {
-        Optional.ofNullable(o.get()).ifPresent((o) -> LOCK.write(() -> {
-            QUEUE.add(() -> {
+        try {
+            TASKS.addtask(() -> {
                 try {
                     canrun();
-                    write0(o, da);
+                    OUT.append(da);
                     // 回调
-                    pool.ifPresentOrElse(pool -> pool.submit(callback), callback);
+                    TASKS.addtask(callback, ID_RUNNBACK);
                 } catch ( IOException e ) {
                     erun.accept(e);
+                } catch ( InterruptedException e ) {
+                    e.printStackTrace();
                 }
-            });
-            QUEUE_WAIT.signalAll();
-        }));
+            }, ID_TASKS);
+        } catch ( InterruptedException e ) {
+            e.printStackTrace();
+        }
     }
-
-    //---------------------------------------------
-
-    /** 输出实现 */
-    protected abstract
-    void write0(@NotNull Closeable o, @NotNull byte[] da) throws IOException;
 
     //----------------------------------------------------------------------------------------------
 
@@ -144,19 +130,22 @@ class QueueOut implements Flushable, Closeable {
     void print(@NotNull CharSequence da, @NotNull Runnable callback,
                @NotNull Consumer<IOException> erun)
     {
-        Optional.ofNullable(o.get()).ifPresent(o -> LOCK.write(() -> {
-            QUEUE.add(() -> {
+        try {
+            TASKS.addtask(() -> {
                 try {
                     canrun();
-                    print0(o, da);
+                    OUT.append(da);
                     // 回调
-                    pool.ifPresentOrElse(pool -> pool.submit(callback), callback);
+                    TASKS.addtask(callback, ID_RUNNBACK);
                 } catch ( IOException e ) {
                     erun.accept(e);
+                } catch ( InterruptedException e ) {
+                    e.printStackTrace();
                 }
-            });
-            QUEUE_WAIT.signal();
-        }));
+            }, ID_TASKS);
+        } catch ( InterruptedException e ) {
+            e.printStackTrace();
+        }
     }
 
     //---------------------------------------------
@@ -180,12 +169,6 @@ class QueueOut implements Flushable, Closeable {
     void println(@NotNull CharSequence da, @NotNull Runnable callback,
                  @NotNull Consumer<IOException> erun)
     {print(da, callback, erun);}
-
-    //---------------------------------------------
-
-    /** 输出实现 */
-    protected abstract
-    void print0(@NotNull Closeable o, @NotNull CharSequence da) throws IOException;
 
     //---------------------------------------------
 
@@ -235,7 +218,7 @@ class QueueOut implements Flushable, Closeable {
 
     /** 是否有在写入 */
     public final
-    boolean isWrite() { return QUEUE.size() != 0; }
+    boolean isWrite() { return TASKS.hasTask(ID_TASKS); }
 
     //----------------------------------------------------------------------------------------------
 
@@ -243,32 +226,32 @@ class QueueOut implements Flushable, Closeable {
     public
     void flush() throws IOException {
         canrun();
-        Optional.ofNullable(o.get()).ifPresent(o -> LOCK.write(() -> {
-            QUEUE.add(() -> {
+        try {
+            TASKS.addtask(() -> {
                 try {
-                    ((Flushable) o).flush();
+                    OUT.send();
                 } catch ( IOException ignored ) {
                 }
-            });
-            QUEUE_WAIT.signal();
-        }));
+            }, ID_TASKS);
+        } catch ( InterruptedException e ) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public
     void close() {
-        Optional.ofNullable(o.get()).ifPresent(o -> LOCK.write(() -> {
-            if (!isClose()) {
-                QUEUE.add(() -> {
-                    close = true;
-                    try {
-                        o.close();
-                    } catch ( IOException ignored ) {
-                    }
-                });
-                QUEUE_WAIT.signal();
-            }
-        }));
+        try {
+            TASKS.addtask(() -> {
+                close = true;
+                try {
+                    OUT.close();
+                } catch ( IOException ignored ) {
+                }
+            }, ID_TASKS);
+        } catch ( InterruptedException e ) {
+            e.printStackTrace();
+        }
     }
 
     //----------------------------------------------------------------------------------------------
@@ -284,4 +267,102 @@ class QueueOut implements Flushable, Closeable {
             throw new IOException();
     }
 
+    /*--------------------------------------------------------------------------------------------*/
+
+    /** 获取构造工具 */
+    @NotNull
+    public static
+    Build build() { return new Build(); }
+
+    @Accessors( chain = true, fluent = true )
+    public static
+    class Build {
+        /** 执行用任务队列 */
+        @Setter private TaskQueue taskQueue = new TaskQueue();
+        /** 执行用线程池，注册给任务队列使用 */
+        @Setter private ExecutorService pool = null;
+        private Function<PushChannel.Build, PushChannel> channel = (build) -> {
+            try {
+                return build.sync();
+            } catch ( IOException e ) {
+                e.printStackTrace();
+            }
+            return null;
+        };
+
+        //------------------------------------------------------------------------------------------
+
+        @NotNull
+        public
+        Build sync() {
+            channel = (build) -> {
+                try {
+                    return build.sync();
+                } catch ( IOException e ) {
+                    e.printStackTrace();
+                }
+                return null;
+            };
+            return this;
+        }
+
+        @NotNull
+        public
+        Build timing(int time) {
+            channel = (build) -> {
+                try {
+                    return build.timing(time);
+                } catch ( IOException e ) {
+                    e.printStackTrace();
+                }
+                return null;
+            };
+            return this;
+        }
+
+        @NotNull
+        public
+        Build buffer(int buffsize) {
+            channel = (build) -> {
+                try {
+                    return build.buffer(buffsize);
+                } catch ( IOException e ) {
+                    e.printStackTrace();
+                }
+                return null;
+            };
+            return this;
+        }
+
+        //------------------------------------------------------------------------------------------
+
+        @NotNull
+        public
+        QueueOut build(@NotNull Writer writer) {
+            return new QueueOut(channel.apply(PushChannel.build()
+                                                         .point(writer)
+                                                         .clear()), pool, taskQueue);
+        }
+
+        @NotNull
+        public
+        QueueOut build(@NotNull OutputStream outputStream) {
+            return new QueueOut(channel.apply(PushChannel.build()
+                                                         .point(outputStream)
+                                                         .clear()), pool, taskQueue);
+        }
+
+        @NotNull
+        public
+        QueueOut build(@NotNull File file) { return build(file.toPath()); }
+
+        @NotNull
+        public
+        QueueOut build(@NotNull Path path) {
+            return new QueueOut(channel.apply(PushChannel.build()
+                                                         .point(path)
+                                                         .append()
+                                                         .clear()), pool, taskQueue);
+        }
+    }
 }
