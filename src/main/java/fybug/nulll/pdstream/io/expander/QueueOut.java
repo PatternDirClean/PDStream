@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.Flushable;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
@@ -23,11 +24,27 @@ import lombok.experimental.Accessors;
 /**
  * 异步队列输出工具
  * <p>
- * 每次进行输出都会包装为一个操作接口插入执行队列中 {@link #flush()} 与 {@link #close()} 都是<br/>
+ * 使用 {@link PushChannel} 实现输出规则的输出工具<br/>
+ * 输出一个数据后会包装为任务加入执行队列中，在执行到之前都不会实际的输出，{@link #flush()} 与 {@link #close()} 同理<br/>
+ * 输出后会马上返回，可插入回调监听数据输出完成事件<br/>
+ * 内部队列实现使用 {@link TaskQueue} 实现<br/>
  * 可使用 {@link #isWrite()} 检查是否有操作在等待<br/>
- * 可追加完成回调与异常处理
  * <br/><br/>
- * 通过 {@code of(0} 方法获取构造器，在构造器中赋予属性后调用 {@code build()} 构造实例
+ * 通过 {@link #build()} 方法获取构造器，在构造器中赋予属性后调用 {@code build()} 构造实例
+ * <br/><br/>
+ * <pre>使用示例：
+ *     public static
+ *     void main(String[] args) {
+ *         // 输出流
+ *         var write = new StringWriter();
+ *         // 输出队列
+ *         var queue = QueueOut.build().build(write);
+ *
+ *         queue.print("asddas");
+ *         queue.print("asddas");
+ *         queue.flush();
+ *         queue.close();
+ *     }</pre>
  *
  * @author fybug
  * @version 0.0.1
@@ -49,10 +66,23 @@ class QueueOut implements Flushable, Closeable {
 
     //----------------------------------------------------------------------------------------------
 
-    protected
+    /**
+     * 构造输出队列
+     *
+     * @param out 输出通道
+     * @param p   线程池
+     */
+    public
     QueueOut(@NotNull PushChannel out, @Nullable ExecutorService p)
     { this(out, p, new TaskQueue()); }
 
+    /**
+     * 构造输出队列
+     *
+     * @param out       输出通道
+     * @param p         线程池
+     * @param taskQueue 任务队列
+     */
     protected
     QueueOut(@NotNull PushChannel out, @Nullable ExecutorService p, @NotNull TaskQueue taskQueue) {
         this.OUT = out;
@@ -224,11 +254,11 @@ class QueueOut implements Flushable, Closeable {
 
     @Override
     public
-    void flush() throws IOException {
-        canrun();
+    void flush() {
         try {
             TASKS.addtask(() -> {
                 try {
+                    canrun();
                     OUT.send();
                 } catch ( IOException ignored ) {
                 }
@@ -269,11 +299,26 @@ class QueueOut implements Flushable, Closeable {
 
     /*--------------------------------------------------------------------------------------------*/
 
-    /** 获取构造工具 */
+    /**
+     * 获取构造工具
+     *
+     * @see Build
+     */
     @NotNull
     public static
     Build build() { return new Build(); }
 
+    /**
+     * <h2>构造工具.</h2>
+     * 使用此工具构造输出队列<br/>
+     * {@link #sync()}、{@link #timing(int)}、{@link #buffer(int)} 或者 {@link #channel(Function)} 指定输出通道的类型，最后的方法建议仅在熟读 {@link PushChannel} 源码和机制后使用<br/>
+     * 使用 {@link #pool(ExecutorService)}、{@link #taskQueue(TaskQueue)} 用于定义运行环境，用于复用单个任务队列和线程池的时候使用<br/>
+     * 最后使用 {@code build()} 方法构造实例
+     *
+     * @author fybug
+     * @version 0.0.1
+     * @since QueueOut 0.0.1
+     */
     @Accessors( chain = true, fluent = true )
     public static
     class Build {
@@ -281,7 +326,8 @@ class QueueOut implements Flushable, Closeable {
         @Setter private TaskQueue taskQueue = new TaskQueue();
         /** 执行用线程池，注册给任务队列使用 */
         @Setter private ExecutorService pool = null;
-        private Function<PushChannel.Build, PushChannel> channel = (build) -> {
+        /** 通道预处理方法，用于指定类型 */
+        @Setter private Function<PushChannel.Build, PushChannel> channel = (build) -> {
             try {
                 return build.sync();
             } catch ( IOException e ) {
@@ -292,50 +338,71 @@ class QueueOut implements Flushable, Closeable {
 
         //------------------------------------------------------------------------------------------
 
+        /**
+         * 设置通道实现：同步输出
+         *
+         * @see PushChannel.SyncChannel
+         */
         @NotNull
         public
         Build sync() {
-            channel = (build) -> {
+            return channel((build) -> {
                 try {
                     return build.sync();
                 } catch ( IOException e ) {
                     e.printStackTrace();
                 }
                 return null;
-            };
-            return this;
+            });
         }
 
+        /**
+         * 设置通道实现：定时型输出
+         *
+         * @param time 定时区间，单位毫秒
+         *
+         * @see PushChannel.TimingChannel
+         */
         @NotNull
         public
         Build timing(int time) {
-            channel = (build) -> {
+            return channel((build) -> {
                 try {
                     return build.timing(time);
                 } catch ( IOException e ) {
                     e.printStackTrace();
                 }
                 return null;
-            };
-            return this;
+            });
         }
 
+        /**
+         * 设置通道实现：溢出式
+         *
+         * @param buffsize 缓存区大小
+         *
+         * @see PushChannel.BufferChannel
+         */
         @NotNull
         public
         Build buffer(int buffsize) {
-            channel = (build) -> {
+            return channel((build) -> {
                 try {
                     return build.buffer(buffsize);
                 } catch ( IOException e ) {
                     e.printStackTrace();
                 }
                 return null;
-            };
-            return this;
+            });
         }
 
         //------------------------------------------------------------------------------------------
 
+        /**
+         * 构造
+         *
+         * @param writer 要输出的流
+         */
         @NotNull
         public
         QueueOut build(@NotNull Writer writer) {
@@ -344,6 +411,11 @@ class QueueOut implements Flushable, Closeable {
                                                          .clear()), pool, taskQueue);
         }
 
+        /**
+         * 构造
+         *
+         * @param outputStream 要输出的流
+         */
         @NotNull
         public
         QueueOut build(@NotNull OutputStream outputStream) {
@@ -352,10 +424,20 @@ class QueueOut implements Flushable, Closeable {
                                                          .clear()), pool, taskQueue);
         }
 
+        /**
+         * 构造
+         *
+         * @param file 要输出的文件
+         */
         @NotNull
         public
         QueueOut build(@NotNull File file) { return build(file.toPath()); }
 
+        /**
+         * 构造
+         *
+         * @param path 要输出的路径
+         */
         @NotNull
         public
         QueueOut build(@NotNull Path path) {
@@ -364,5 +446,15 @@ class QueueOut implements Flushable, Closeable {
                                                          .append()
                                                          .clear()), pool, taskQueue);
         }
+
+        /**
+         * 构造
+         *
+         * @param channel 输出通道
+         */
+        @NotNull
+        public
+        QueueOut build(@NotNull PushChannel channel)
+        { return new QueueOut(channel, pool, taskQueue); }
     }
 }
